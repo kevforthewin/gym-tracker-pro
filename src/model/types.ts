@@ -61,6 +61,12 @@ export interface Gym extends Row {
   chain?: string;
   address?: string;
   city?: string;
+  district?: string;
+  /** Urban-Sports-Club-Pakete, in denen das Gym enthalten ist (Stand siehe Katalog) */
+  uscPlans?: string[];
+  /** Fitnessstudio oder Functional-/CrossFit-Box */
+  kind?: 'gym' | 'functional';
+  sourceUrl?: string;
   createdBy?: string;
 }
 

@@ -58,7 +58,7 @@ describe('sync', () => {
     await resetDb();
     await setMeta('userId', 'u');
     await pull(s.api);
-    expect((await all('gyms')).map((g) => g.name)).toEqual(['FitX']);
+    expect((await all('gyms')).filter((g) => !g.id.startsWith('usc-')).map((g) => g.name)).toEqual(['FitX']);
 
     // Server bekommt ältere Änderung, lokal ist neuer und noch nicht gepusht
     await patch('gyms', gym.id, { name: 'FitX Ehrenfeld' });

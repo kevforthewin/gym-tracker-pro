@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { CATALOG_EXERCISES, CATALOG_MODELS, LEGACY_MODEL_ALIAS, VERIFIED_CATALOG_MODELS, modelTitle } from './catalog';
+import { CATALOG_EXERCISES, CATALOG_GYMS, CATALOG_MODELS, LEGACY_MODEL_ALIAS, VERIFIED_CATALOG_MODELS, modelTitle } from './catalog';
+import { searchGyms } from '../local/queries';
 import { exerciseForProduct } from './mapModels';
 import { db, resetDb, setMeta, seedCatalog } from '../local/db';
 
@@ -45,6 +46,25 @@ describe('Herstellerkatalog', () => {
       expect((await db.gymMachines.get('a'))!.modelId).toBe('hoist--rs-2301');
       expect((await db.gymMachines.get('b'))!.modelId).toBeUndefined();
       expect(await db.equipmentModels.get('hoist--roc-it--chest-press')).toBeUndefined();
+    });
+  });
+
+  describe('Gym-Katalog Köln (Urban Sports Club)', () => {
+    beforeEach(async () => {
+      await resetDb();
+    });
+    it('wird geseedet und ist nach Paket filterbar', async () => {
+      expect(CATALOG_GYMS.length).toBeGreaterThan(50);
+      expect(new Set(CATALOG_GYMS.map((g) => g.id)).size).toBe(CATALOG_GYMS.length);
+      const ff = await searchGyms('fitness first nippes');
+      const nippes = ff.find((g) => g.name === 'Fitness First Köln - Nippes')!;
+      expect(nippes.district).toBe('Nippes');
+      expect(nippes.uscPlans).toContain('Essential');
+      const essential = await searchGyms('', 'Essential');
+      const all = await searchGyms('');
+      expect(essential.length).toBeGreaterThan(5);
+      expect(essential.length).toBeLessThan(all.length);
+      expect(essential.every((g) => g.uscPlans?.includes('Essential'))).toBe(true);
     });
   });
 });

@@ -1,7 +1,7 @@
 // Erzeugt supabase/migrations/0002_seed_catalog.sql aus src/catalog/catalog.ts
 // Aufruf: npm run catalog:sql
 import { writeFileSync } from 'node:fs';
-import { CATALOG_EXERCISES, CATALOG_MANUFACTURERS, CATALOG_MODELS, LEGACY_MODEL_ALIAS } from '../src/catalog/catalog';
+import { CATALOG_EXERCISES, CATALOG_GYMS, CATALOG_MANUFACTURERS, CATALOG_MODELS, LEGACY_MODEL_ALIAS } from '../src/catalog/catalog';
 
 type Col = [sql: string, key: string];
 const q = (v: unknown) =>
@@ -17,7 +17,7 @@ const insert = (table: string, cols: Col[], rows: object[]) =>
 const alias = Object.entries(LEGACY_MODEL_ALIAS);
 const sql = [
   '-- Startkatalog (generiert von scripts/gen-catalog-sql.ts – nicht von Hand ändern)',
-  '-- Nach 0001_init.sql (und 0005_model_details.sql) im SQL Editor ausführen. Erneutes Ausführen aktualisiert nur Katalogzeilen.',
+  '-- Nach 0001_init.sql, 0005_model_details.sql und 0008_gym_details.sql im SQL Editor ausführen. Erneutes Ausführen aktualisiert nur Katalogzeilen.',
   insert('manufacturers', [['id', 'id'], ['name', 'name']], CATALOG_MANUFACTURERS),
   insert(
     'exercises',
@@ -40,6 +40,22 @@ const sql = [
     ],
     CATALOG_MODELS,
   ),
+  '-- Gyms (Köln, Urban-Sports-Club-Partner) – benötigt 0008_gym_details.sql',
+  insert(
+    'gyms',
+    [
+      ['id', 'id'],
+      ['name', 'name'],
+      ['chain', 'chain'],
+      ['address', 'address'],
+      ['city', 'city'],
+      ['district', 'district'],
+      ['usc_plans', 'uscPlansJson'],
+      ['kind', 'kind'],
+      ['source_url', 'sourceUrl'],
+    ],
+    CATALOG_GYMS.map((g) => ({ ...g, uscPlansJson: JSON.stringify(g.uscPlans) })),
+  ).replace(/'(\[[^']*\])'/g, "'$1'::jsonb"),
   '-- Katalog v1 → v2: generierte Modelle der geprüften Hersteller durch echte ersetzen',
   ...alias.map(
     ([oldId, newId]) =>

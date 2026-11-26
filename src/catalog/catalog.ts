@@ -4,9 +4,10 @@
  * Übrige Hersteller: noch generiert aus typischen Gerätetypen (wird schrittweise ersetzt).
  * Nutzer ergänzen fehlende Modelle in der App. IDs sind stabil (werden in Supabase gleich geseedet).
  */
-import type { EquipmentKind, EquipmentModel, Exercise, ExerciseType, Manufacturer, Split } from '../model/types';
+import type { EquipmentKind, EquipmentModel, Exercise, ExerciseType, Gym, Manufacturer, Split } from '../model/types';
 import { exerciseForProduct, kindForLine } from './mapModels';
 import { VERIFIED_MODELS } from './verifiedModels';
+import { USC_KOELN_GYMS } from './uscKoeln';
 
 const T0 = 0; // Katalog-Zeilen: updatedAt 0 → jede Nutzer-Änderung gewinnt
 
@@ -266,3 +267,17 @@ export const LEGACY_MODEL_ALIAS: Record<string, string | null> = Object.fromEntr
 export function modelTitle(m: Pick<EquipmentModel, 'line' | 'name'>, mf?: Pick<Manufacturer, 'name'>): string {
   return `${m.name} · ${[mf?.name, m.line].filter(Boolean).join(' ')}`;
 }
+
+/** Katalog-Gyms (aktuell: Köln, Urban-Sports-Club-Partner) */
+export const CATALOG_GYMS: Gym[] = USC_KOELN_GYMS.map(([slug, name, kind, chain, district, street, plans]) => ({
+  id: `usc-koeln-${slug}`,
+  name,
+  kind,
+  chain: chain ?? undefined,
+  district,
+  address: street,
+  city: 'Köln',
+  uscPlans: plans,
+  sourceUrl: `https://urbansportsclub.com/de/venues/${slug}`,
+  updatedAt: T0,
+}));

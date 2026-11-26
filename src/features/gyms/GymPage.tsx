@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ExternalLink } from 'lucide-react';
+import { UscPlans } from './UscPlans';
 import { MuscleTile } from '../../components/MuscleIcon';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -67,7 +68,21 @@ export function GymPage() {
     <>
       <PageHeader
         title={gym.name}
-        subtitle={[gym.chain, gym.address, gym.city].filter(Boolean).join(' · ') || undefined}
+        subtitle={
+          <>
+            {[gym.address, gym.district, gym.city].filter(Boolean).join(' · ')}
+            {gym.uscPlans && (
+              <span className="mt-1.5 flex flex-wrap items-center gap-2">
+                <UscPlans plans={gym.uscPlans} />
+                {gym.sourceUrl && (
+                  <a href={gym.sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 text-xs text-slate-400 underline">
+                    bei USC ansehen <ExternalLink size={11} />
+                  </a>
+                )}
+              </span>
+            )}
+          </>
+        }
         back={() => nav('/gyms')}
         right={<Button onClick={() => setAdding(true)}>+ Gerät</Button>}
       />

@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { USC_PLANS, USC_SNAPSHOT } from '../../catalog/uscKoeln';
+import { UscPlans } from './UscPlans';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, Card, EmptyState, Field, Modal, PageHeader } from '../../components/ui';
-import { save } from '../../local/db';
+import { getMeta, save, setMeta } from '../../local/db';
 import { addMyGym, myGyms, searchGyms } from '../../local/queries';
 import { db } from '../../local/db';
 
@@ -48,7 +50,8 @@ function AddGymModal({ open, onClose }: { open: boolean; onClose: () => void }) 
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ name: '', chain: '', city: '', address: '' });
   const mine = useLiveQuery(async () => new Set((await db.userGyms.toArray()).filter((l) => !l.deletedAt).map((l) => l.gymId)), []);
-  const results = useLiveQuery(() => searchGyms(q), [q]);
+  const uscPlan = useLiveQuery(async () => (await getMeta<string>('uscPlan')) ?? '', []);
+  const results = useLiveQuery(() => searchGyms(q, uscPlan || undefined), [q, uscPlan]);
 
   const take = async (id: string) => {
     await addMyGym(id);
@@ -71,20 +74,39 @@ function AddGymModal({ open, onClose }: { open: boolean; onClose: () => void }) 
     <Modal open={open} onClose={onClose} title="Gym hinzufügen">
       {!creating ? (
         <div className="space-y-3">
-          <input className="input" placeholder="Suchen: Name, Kette oder Stadt" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+          <input className="input" placeholder="Suchen: Name, Kette, Stadtteil – z. B. „fitness first nippes“" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+          <div>
+            <span className="label">Mein Urban-Sports-Club-Paket</span>
+            <div className="flex gap-1.5">
+              {['', ...USC_PLANS].map((p) => (
+                <button
+                  key={p || 'all'}
+                  type="button"
+                  onClick={() => setMeta('uscPlan', p)}
+                  className={`flex-1 rounded-full py-1.5 text-xs font-semibold ${uscPlan === p ? 'bg-white text-black' : 'bg-slate-800 text-slate-300'}`}
+                >
+                  {p || 'Alle'}
+                </button>
+              ))}
+            </div>
+          </div>
           <ul className="divide-y divide-slate-800">
             {results?.map((g) => (
               <li key={g.id}>
-                <button type="button" className="flex w-full items-center justify-between py-2.5 text-left" disabled={mine?.has(g.id)} onClick={() => take(g.id)}>
-                  <span>
-                    {g.name}
-                    <span className="block text-xs text-slate-500">{[g.chain, g.address, g.city].filter(Boolean).join(' · ')}</span>
+                <button type="button" className="flex w-full items-center justify-between gap-3 py-2.5 text-left" disabled={mine?.has(g.id)} onClick={() => take(g.id)}>
+                  <span className="min-w-0">
+                    <span className="block truncate">{g.name}</span>
+                    <span className="block truncate text-xs text-slate-500">{[g.district ?? g.city, g.address].filter(Boolean).join(' · ')}</span>
+                    {g.uscPlans && <UscPlans plans={g.uscPlans} className="mt-1" />}
                   </span>
-                  <span className="text-sm text-emerald-400">{mine?.has(g.id) ? '✓ dabei' : 'Übernehmen'}</span>
+                  <span className="shrink-0 text-sm text-emerald-400">{mine?.has(g.id) ? '✓ dabei' : 'Übernehmen'}</span>
                 </button>
               </li>
             ))}
           </ul>
+          <p className="text-[11px] text-slate-500">
+            Urban-Sports-Club-Pakete laut öffentlicher Partnerliste (Köln, Stand {USC_SNAPSHOT}). Maßgeblich ist die USC-App.
+          </p>
           {results?.length === 0 && <p className="text-sm text-slate-500">Nichts gefunden.</p>}
           <Button
             variant="secondary"

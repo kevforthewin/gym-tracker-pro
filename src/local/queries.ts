@@ -19,11 +19,14 @@ export async function addMyGym(gymId: string) {
 }
 
 /** Geteilte Gyms durchsuchen (Name, Kette, Stadt) */
-export async function searchGyms(q: string): Promise<Gym[]> {
-  const t = q.trim().toLowerCase();
-  const gyms = await all('gyms');
-  if (!t) return gyms.slice(0, 30);
-  return gyms.filter((g) => [g.name, g.chain, g.city, g.address].some((x) => x?.toLowerCase().includes(t))).slice(0, 30);
+/** Gyms durchsuchen (Name, Kette, Stadt, Stadtteil, Straße); optional nur Gyms eines USC-Pakets */
+export async function searchGyms(q: string, uscPlan?: string): Promise<Gym[]> {
+  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return (await all('gyms'))
+    .filter((g) => !uscPlan || g.uscPlans?.includes(uscPlan))
+    .filter((g) => words.every((w) => [g.name, g.chain, g.city, g.district, g.address].some((x) => x?.toLowerCase().includes(w))))
+    .sort((a, b) => a.name.localeCompare(b.name, 'de'))
+    .slice(0, 100);
 }
 
 export interface MachineView extends GymMachine {

@@ -34,7 +34,7 @@ describe('Beispieldaten', () => {
     expect(await hasDemo()).toBe(false);
     expect((await all('sessions')).length).toBe(0);
     expect((await all('sets')).length).toBe(0);
-    expect((await all('gyms')).map((g) => g.name)).toEqual(['Mein Gym']);
+    expect((await all('gyms')).filter((g) => !g.id.startsWith('usc-')).map((g) => g.name)).toEqual(['Mein Gym']);
     expect((await db.outbox.toArray()).every((e) => e.table === 'gyms')).toBe(true);
   });
 });

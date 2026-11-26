@@ -4,7 +4,7 @@
  * und werden vom Sync-Modul zu Supabase übertragen.
  */
 import Dexie, { type EntityTable } from 'dexie';
-import { CATALOG_EXERCISES, CATALOG_MANUFACTURERS, CATALOG_MODELS, LEGACY_MODEL_ALIAS } from '../catalog/catalog';
+import { CATALOG_EXERCISES, CATALOG_GYMS, CATALOG_MANUFACTURERS, CATALOG_MODELS, LEGACY_MODEL_ALIAS } from '../catalog/catalog';
 import {
   PRIVATE_TABLES,
   type BodyweightEntry,
@@ -105,7 +105,7 @@ export const uid = () => crypto.randomUUID();
 export const alive = <T extends Row>(r: T | undefined): r is T => !!r && !r.deletedAt;
 
 /** Katalog lokal bereitstellen (überschreibt keine neueren Nutzer-Änderungen). */
-export const CATALOG_VERSION = 2;
+export const CATALOG_VERSION = 3;
 
 /**
  * Katalog lokal bereitstellen bzw. aktualisieren.
@@ -114,11 +114,12 @@ export const CATALOG_VERSION = 2;
  */
 export async function seedCatalog() {
   if ((await getMeta<number>('catalogVersion')) === CATALOG_VERSION) return;
-  await db.transaction('rw', [db.manufacturers, db.equipmentModels, db.exercises, db.gymMachines, db.meta], async () => {
+  await db.transaction('rw', [db.manufacturers, db.equipmentModels, db.exercises, db.gyms, db.gymMachines, db.meta], async () => {
     for (const [table, rows] of [
       [db.manufacturers, CATALOG_MANUFACTURERS],
       [db.equipmentModels, CATALOG_MODELS],
       [db.exercises, CATALOG_EXERCISES],
+      [db.gyms, CATALOG_GYMS],
     ] as const) {
       const t = table as EntityTable<Row & { createdBy?: string }, 'id'>;
       const existing = new Map((await t.toArray()).map((r) => [r.id, r]));
