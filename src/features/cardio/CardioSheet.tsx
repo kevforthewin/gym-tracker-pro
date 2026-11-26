@@ -1,5 +1,7 @@
 /** Ein einziges Formular für Cardio – eigenständig oder als Teil eines Krafttrainings. */
 import { useEffect, useState } from 'react';
+import { ChevronRight } from 'lucide-react';
+import { CardioIcon } from '../../components/CardioIcon';
 import { Button, Field, Modal, Stepper } from '../../components/ui';
 import { getMeta, patch, remove, save, setMeta } from '../../local/db';
 import { isoOf } from '../../domain/dashboard';
@@ -73,9 +75,7 @@ export function CardioSheet({
               onClick={() => setKind(c.id)}
               className={`flex flex-col items-center rounded-2xl px-1 py-2 text-[10px] leading-tight ${kind === c.id ? 'bg-white text-black' : 'bg-slate-800 text-slate-300'}`}
             >
-              <span className="text-xl" aria-hidden>
-                {c.icon}
-              </span>
+              <CardioIcon kind={c.id} size={22} className="mb-1" />
               {c.label}
             </button>
           ))}
@@ -123,8 +123,8 @@ export function CardioRow({ entry, onClick }: { entry: CardioEntry; onClick?: ()
   const pace = entry.distanceKm && entry.durationMin ? entry.durationMin / entry.distanceKm : undefined;
   return (
     <button type="button" onClick={onClick} className="flex w-full items-center gap-3 rounded-card bg-slate-900 px-4 py-3 text-left active:bg-slate-800">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-best/15 text-xl" aria-hidden>
-        {k.icon}
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-best/15 text-best" aria-hidden>
+        <CardioIcon kind={k.id} size={20} />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block font-semibold">{k.label}</span>
@@ -139,7 +139,7 @@ export function CardioRow({ entry, onClick }: { entry: CardioEntry; onClick?: ()
             .join(' · ')}
         </span>
       </span>
-      {onClick && <span className="text-slate-600">›</span>}
+      {onClick && <ChevronRight size={18} className="text-slate-600" />}
     </button>
   );
 }

@@ -1,11 +1,12 @@
 import { NavLink, useLocation } from 'react-router-dom';
+import { Dumbbell, History, MapPin, TrendingUp, UserRound } from 'lucide-react';
 
 const items = [
-  { to: '/', label: 'Training', icon: '🏋️', match: (p: string) => p === '/' || p.startsWith('/session') },
-  { to: '/history', label: 'Verlauf', icon: '🕘', match: (p: string) => p.startsWith('/history') },
-  { to: '/progress', label: 'Fortschritt', icon: '📈', match: (p: string) => p.startsWith('/progress') },
-  { to: '/gyms', label: 'Gyms', icon: '📍', match: (p: string) => p.startsWith('/gyms') },
-  { to: '/profile', label: 'Profil', icon: '👤', match: (p: string) => p.startsWith('/profile') },
+  { to: '/', label: 'Training', icon: Dumbbell, match: (p: string) => p === '/' || p.startsWith('/session') },
+  { to: '/history', label: 'Verlauf', icon: History, match: (p: string) => p.startsWith('/history') },
+  { to: '/progress', label: 'Fortschritt', icon: TrendingUp, match: (p: string) => p.startsWith('/progress') },
+  { to: '/gyms', label: 'Gyms', icon: MapPin, match: (p: string) => p.startsWith('/gyms') },
+  { to: '/profile', label: 'Profil', icon: UserRound, match: (p: string) => p.startsWith('/profile') },
 ];
 
 /** Schwebende Navigationsleiste in Pillenform */
@@ -23,9 +24,7 @@ export function BottomNav() {
                 to={i.to}
                 className={`flex flex-col items-center rounded-full py-1.5 text-[10px] font-medium ${active ? 'bg-slate-700/80 text-white' : 'text-slate-500'}`}
               >
-                <span className={`text-lg leading-6 ${active ? '' : 'opacity-60 grayscale'}`} aria-hidden>
-                  {i.icon}
-                </span>
+                <i.icon size={21} strokeWidth={active ? 2.2 : 1.8} className="mb-0.5" aria-hidden />
                 {i.label}
               </NavLink>
             </li>

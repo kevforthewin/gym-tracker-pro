@@ -173,20 +173,20 @@ export interface CardioEntry extends Owned {
 
 /** Cardio-Arten – bewusst eine kurze, feste Liste */
 export const CARDIO_KINDS = [
-  { id: 'treadmill', label: 'Laufband', icon: '🏃', distance: true },
-  { id: 'run', label: 'Laufen draußen', icon: '👟', distance: true },
-  { id: 'bike', label: 'Ergometer', icon: '🚴', distance: true },
-  { id: 'cycling', label: 'Radfahren', icon: '🚲', distance: true },
-  { id: 'cross-trainer', label: 'Crosstrainer', icon: '⛷️', distance: false },
-  { id: 'rower', label: 'Rudergerät', icon: '🚣', distance: true },
-  { id: 'stairs', label: 'Stepper', icon: '🪜', distance: false },
-  { id: 'swim', label: 'Schwimmen', icon: '🏊', distance: true },
-  { id: 'walk', label: 'Gehen', icon: '🚶', distance: true },
-  { id: 'other', label: 'Sonstiges', icon: '❤️', distance: false },
+  { id: 'treadmill', label: 'Laufband', distance: true },
+  { id: 'run', label: 'Laufen draußen', distance: true },
+  { id: 'bike', label: 'Ergometer', distance: true },
+  { id: 'cycling', label: 'Radfahren', distance: true },
+  { id: 'cross-trainer', label: 'Crosstrainer', distance: false },
+  { id: 'rower', label: 'Rudergerät', distance: true },
+  { id: 'stairs', label: 'Stepper', distance: false },
+  { id: 'swim', label: 'Schwimmen', distance: true },
+  { id: 'walk', label: 'Gehen', distance: true },
+  { id: 'other', label: 'Sonstiges', distance: false },
 ] as const;
 
 export function cardioKind(kind: string) {
-  return CARDIO_KINDS.find((k) => k.id === kind) ?? { id: kind, label: kind, icon: '❤️', distance: true };
+  return CARDIO_KINDS.find((k) => k.id === kind) ?? { id: kind, label: kind, distance: true };
 }
 
 /** Cardio-Übungen gehören nicht in Kraft-Auswahllisten (dafür gibt es Cardio-Einträge) */

@@ -1,4 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
+import { Equal, Sparkles, TrendingDown, TrendingUp, Trophy } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Card, EmptyState, PageHeader } from '../../components/ui';
 import { alive, db } from '../../local/db';
@@ -64,7 +65,7 @@ export function SummaryPage() {
   const s = data.summary;
   return (
     <>
-      <PageHeader title={s.prs.length ? 'Starkes Training 🏆' : 'Geschafft 💪'} back={() => nav('/')} />
+      <PageHeader title={s.prs.length ? 'Starkes Training' : 'Geschafft'} back={() => nav('/')} />
       <p className="-mt-2 mb-4 text-sm text-slate-500">
         {data.dayName} · {data.gymName} · {fmtDate(data.session.startedAt)}
       </p>
@@ -82,11 +83,11 @@ export function SummaryPage() {
             ))}
           </section>
         )}
-        <Group title="🏆 Neue Bestwerte" items={s.prs} accent="text-amber-300" />
-        <Group title="▲ Gesteigert" items={s.up} accent="text-emerald-400" />
-        <Group title="▶ Wie letztes Mal" items={s.same} accent="text-slate-500" />
-        <Group title="▼ Weniger als letztes Mal" items={s.down} accent="text-red-400" />
-        <Group title="✨ Zum ersten Mal" items={s.first} accent="text-sky-300" />
+        <Group icon={<Trophy size={16} className="text-best" />} title="Neue Bestwerte" items={s.prs} accent="text-amber-300" />
+        <Group icon={<TrendingUp size={16} className="text-emerald-400" />} title="Gesteigert" items={s.up} accent="text-emerald-400" />
+        <Group icon={<Equal size={16} className="text-slate-500" />} title="Wie letztes Mal" items={s.same} accent="text-slate-500" />
+        <Group icon={<TrendingDown size={16} className="text-red-400" />} title="Weniger als letztes Mal" items={s.down} accent="text-red-400" />
+        <Group icon={<Sparkles size={16} className="text-sky-300" />} title="Zum ersten Mal" items={s.first} accent="text-sky-300" />
         <p className="text-[11px] text-slate-500">Verglichen mit demselben Gerät – oder dem gleichen Gerätemodell in einem anderen Gym. Freihantel: über alle Gyms.</p>
         <div className="flex gap-2">
           <Button variant="secondary" className="flex-1" onClick={() => nav(`/session/${data.session.id}`)}>
@@ -110,11 +111,12 @@ function Tile({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Group({ title, items, accent }: { title: string; items: ExerciseSummary[]; accent: string }) {
+function Group({ icon, title, items, accent }: { icon: React.ReactNode; title: string; items: ExerciseSummary[]; accent: string }) {
   if (!items.length) return null;
   return (
     <section>
-      <h2 className="mb-1.5 text-sm font-semibold">
+      <h2 className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold">
+        {icon}
         {title} <span className="font-normal text-slate-500">· {items.length}</span>
       </h2>
       <Card className="divide-y divide-slate-800 p-0">

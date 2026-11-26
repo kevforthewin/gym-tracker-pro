@@ -1,5 +1,7 @@
 /** Angeheftete Fortschritts-Karten: bester Satz, Veränderung seit dem ersten Training, Mini-Chart mit Bestwerten. */
 import { useState } from 'react';
+import { ArrowUp, MoreHorizontal, Plus } from 'lucide-react';
+import { MuscleTile } from '../../components/MuscleIcon';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, type DotProps } from 'recharts';
 import { BestBadge, Button, IconButton, Modal } from '../../components/ui';
@@ -116,19 +118,20 @@ export function ProgressCards({ onOpen }: { onOpen: (exerciseId: string) => void
       <div className="mb-2 mt-6 flex items-center justify-between">
         <h2 className="text-xl font-bold">Übungen</h2>
         <IconButton label="Chart hinzufügen" onClick={() => setAdding(true)}>
-          +
+          <Plus size={20} />
         </IconButton>
       </div>
       <div className="space-y-3">
         {data?.cards.map((c) => (
           <div key={c.exercise.id} className="rounded-card bg-slate-900 p-4">
             <div className="flex items-start gap-2">
+              <MuscleTile muscle={c.exercise.muscleGroup} />
               <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onOpen(c.exercise.id)}>
                 <h3 className="truncate text-lg font-bold">{c.exercise.name}</h3>
                 <p className="truncate text-xs text-slate-500">{c.subtitle}</p>
               </button>
               <IconButton label="Optionen" className="h-8 w-8 bg-transparent" onClick={() => setMenu(c.exercise.id)}>
-                ⋯
+                <MoreHorizontal size={18} />
               </IconButton>
             </div>
             <button type="button" className="mt-2 block w-full text-left" onClick={() => onOpen(c.exercise.id)}>
@@ -186,7 +189,7 @@ export function ProgressCards({ onOpen }: { onOpen: (exerciseId: string) => void
               setMenu(null);
             }}
           >
-            ↑ Nach oben
+            <ArrowUp size={16} /> Nach oben
           </Button>
           <Button
             variant="danger"

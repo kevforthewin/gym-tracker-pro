@@ -1,4 +1,5 @@
 import { type ButtonHTMLAttributes, type ReactNode, useEffect } from 'react';
+import { ChevronLeft, X } from 'lucide-react';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'accent';
 const variants: Record<Variant, string> = {
@@ -48,7 +49,7 @@ export function PageHeader({ title, subtitle, right, back }: { title: string; su
       <div className="flex min-h-10 items-center justify-between gap-2">
         {back ? (
           <IconButton label="Zurück" onClick={back}>
-            ‹
+            <ChevronLeft size={22} strokeWidth={2} />
           </IconButton>
         ) : (
           <span />
@@ -90,7 +91,7 @@ export function Modal({ open, onClose, title, children }: { open: boolean; onClo
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-bold">{title}</h2>
           <IconButton label="Schließen" onClick={onClose} className="h-8 w-8 text-sm">
-            ✕
+            <X size={16} strokeWidth={2.2} />
           </IconButton>
         </div>
         {children}

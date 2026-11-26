@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
+import { MuscleTile } from '../../components/MuscleIcon';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Card, EmptyState, Field, Modal, PageHeader, Segmented, StatRow } from '../../components/ui';
@@ -114,9 +116,7 @@ export function GymPage() {
                   const st = stats?.perMachine.get(m.id);
                   return (
                     <button key={m.id} type="button" className="flex w-full items-center gap-3 px-4 py-3 text-left" onClick={() => setOpen(m)}>
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-800" aria-hidden>
-                        {m.exercise?.freeWeight ? '🏋️' : '⚙️'}
-                      </span>
+                      <MuscleTile muscle={m.exercise?.muscleGroup} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold">{m.label}</span>
                         <span className="block truncate text-xs text-slate-500">{m.modelTitle ?? `${m.exercise?.name ?? ''} · ohne Modell`}</span>
@@ -129,7 +129,7 @@ export function GymPage() {
                           <span className="block text-xs text-slate-500">{relDay(st.last)}</span>
                         </span>
                       )}
-                      <span className="text-slate-600">›</span>
+                      <ChevronRight size={18} className="text-slate-600" />
                     </button>
                   );
                 })}

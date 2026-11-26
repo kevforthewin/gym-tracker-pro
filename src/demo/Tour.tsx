@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CircleCheck, Link2, MapPin, TrendingUp } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui';
@@ -7,22 +8,22 @@ import { hasDemo, loadDemo, removeDemo } from './demoData';
 
 const SLIDES = [
   {
-    icon: '📍',
+    icon: MapPin,
     title: 'Jedes Gym, jedes Gerät',
     text: 'Du trainierst in mehreren Studios? Hier hat jedes Gerät seine eigene Historie – eine Brustpresse in Gym A ist nicht dieselbe wie in Gym B.',
   },
   {
-    icon: '🔗',
+    icon: Link2,
     title: 'Gleiches Modell erkannt',
     text: 'Ordne Geräte einem Herstellermodell zu. Steht dieselbe „Hoist ROC-IT Brustpresse“ in zwei Gyms, nutzt die App deine Werte aus dem anderen Gym als Ziel.',
   },
   {
-    icon: '✓',
+    icon: CircleCheck,
     title: 'Ein Tipp pro Satz',
     text: 'Jeder Satz ist mit deinem Ziel vorbefüllt. Geschafft? Haken antippen. Mehr geschafft? Zahl ändern, dann Haken. Neue Bestwerte siehst du sofort.',
   },
   {
-    icon: '📈',
+    icon: TrendingUp,
     title: 'Fortschritt auf einen Blick',
     text: 'Verlauf nach Monat, Bestwerte je Gerät und Charts, die zeigen, wie viel stärker du seit dem ersten Training bist.',
   },
@@ -48,7 +49,9 @@ export function Tour({ onDone }: { onDone: () => void }) {
         </button>
       </div>
       <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <div className="mb-8 flex h-24 w-24 items-center justify-center rounded-[2rem] bg-slate-900 text-5xl">{s.icon}</div>
+        <div className="mb-8 flex h-24 w-24 items-center justify-center rounded-[2rem] bg-slate-900">
+          <s.icon size={44} strokeWidth={1.6} />
+        </div>
         <h1 className="text-3xl font-bold tracking-tight">{s.title}</h1>
         <p className="mt-4 max-w-sm text-base leading-relaxed text-slate-400">{s.text}</p>
       </div>

@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { ArrowDown, ArrowUp, ChevronRight, LineChart, MoreHorizontal, StickyNote } from 'lucide-react';
+import { MuscleTile } from '../../components/MuscleIcon';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate } from 'react-router-dom';
 import { Button, IconButton, Modal } from '../../components/ui';
@@ -82,18 +84,16 @@ export function ExerciseCard({ sessionId, exercise, machine, alternatives, presc
           </h3>
         </div>
         <IconButton label="Fortschritt" onClick={() => nav(`/progress?ex=${exercise.id}`)}>
-          📈
+          <LineChart size={18} strokeWidth={1.9} />
         </IconButton>
         <IconButton label="Optionen" onClick={() => setMenu(true)}>
-          ⋯
+          <MoreHorizontal size={18} strokeWidth={2} />
         </IconButton>
       </div>
 
       {/* Geräte-Kachel */}
       <button type="button" onClick={onPickMachine} className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-black px-3 py-2.5 text-left active:bg-slate-950">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-lg" aria-hidden>
-          {machine ? '⚙️' : exercise.freeWeight ? '🏋️' : '❔'}
-        </span>
+        <MuscleTile muscle={exercise.muscleGroup} />
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold">
             {machine ? machine.label : exercise.freeWeight ? 'Freihantel' : needsMachine ? 'Gerät wählen' : 'Kein Gerät'}
@@ -101,9 +101,13 @@ export function ExerciseCard({ sessionId, exercise, machine, alternatives, presc
           <span className="block truncate text-xs text-slate-500">
             {machine ? (modelLine ?? 'ohne Herstellermodell') : exercise.freeWeight ? 'Historie über alle Gyms' : 'Tippen, um ein Gerät zuzuordnen'}
           </span>
-          {note && <span className="block truncate text-xs italic text-slate-400">📝 {note}</span>}
+          {note && (
+            <span className="flex items-center gap-1 truncate text-xs italic text-slate-400">
+              <StickyNote size={12} className="shrink-0" /> {note}
+            </span>
+          )}
         </span>
-        <span className="text-slate-500">›</span>
+        <ChevronRight size={18} className="text-slate-500" />
       </button>
 
       {target && (
@@ -176,10 +180,10 @@ export function ExerciseCard({ sessionId, exercise, machine, alternatives, presc
           {onMove && (
             <div className="grid grid-cols-2 gap-2">
               <Button variant="secondary" onClick={() => onMove('up')}>
-                ↑ Nach oben
+                <ArrowUp size={16} /> Nach oben
               </Button>
               <Button variant="secondary" onClick={() => onMove('down')}>
-                ↓ Nach unten
+                <ArrowDown size={16} /> Nach unten
               </Button>
             </div>
           )}

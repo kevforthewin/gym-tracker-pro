@@ -1,11 +1,13 @@
 import { useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { CardioIcon } from '../../components/CardioIcon';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Link } from 'react-router-dom';
 import { EmptyState, IconButton, PageHeader } from '../../components/ui';
 import { sessionStats, type SessionStat } from '../../local/sessionStats';
 import { SPLIT_LABEL } from '../../domain/dashboard';
 import { fmtNumber } from '../../domain/units';
-import { cardioKind, type CardioEntry, type Split } from '../../model/types';
+import type { CardioEntry, Split } from '../../model/types';
 import { all } from '../../local/db';
 import { isoOf } from '../../domain/dashboard';
 import { CardioRow, CardioSheet } from '../cardio/CardioSheet';
@@ -60,11 +62,11 @@ export function HistoryPage() {
       <PageHeader title="Verlauf" />
       <div className="mb-3 flex items-center justify-between">
         <IconButton label="Vorheriger Monat" onClick={() => shift(-1)}>
-          ‹
+          <ChevronLeft size={20} />
         </IconButton>
         <h2 className="text-lg font-bold">{MONTH.format(from)}</h2>
         <IconButton label="Nächster Monat" onClick={() => !isCurrent && shift(1)} className={isCurrent ? 'opacity-30' : ''}>
-          ›
+          <ChevronRight size={20} />
         </IconButton>
       </div>
 
@@ -141,8 +143,8 @@ export function HistoryPage() {
                   {s.prs > 0 && <span className="chip border border-best/60 text-best">✦ {s.prs}</span>}
                   {!s.finished && <span className="chip bg-emerald-500/15 text-emerald-300">läuft</span>}
                   {cardioBySession.get(s.id)?.map((x) => (
-                    <span key={x.id} className="chip bg-best/15 text-best">
-                      {cardioKind(x.kind).icon} {Math.round(x.durationMin)} min
+                    <span key={x.id} className="chip gap-1 bg-best/15 text-best">
+                      <CardioIcon kind={x.kind} size={12} /> {Math.round(x.durationMin)} min
                     </span>
                   ))}
                 </div>

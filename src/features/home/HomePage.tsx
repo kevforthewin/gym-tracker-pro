@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Dumbbell, Footprints, HeartPulse } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, Card, EmptyState, PageHeader } from '../../components/ui';
@@ -110,7 +111,7 @@ export function HomePage() {
                         : 'border-2 border-slate-800'
                 }`}
               >
-                {trained ? '🏋' : c ? '🏃' : ''}
+                {trained ? <Dumbbell size={14} strokeWidth={2.2} /> : c ? <Footprints size={14} strokeWidth={2.2} /> : null}
                 {trained && c && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border border-black bg-best" />}
               </span>
             </div>
@@ -158,7 +159,7 @@ export function HomePage() {
             Krafttraining starten
           </Button>
           <Button variant="secondary" className="w-full" onClick={() => setCardioOpen(true)}>
-            🏃 Cardio eintragen
+            <HeartPulse size={18} strokeWidth={2} /> Cardio eintragen
           </Button>
           {!days?.length && (
             <p className="text-xs text-slate-500">

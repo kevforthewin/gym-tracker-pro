@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { ArrowUp, X } from 'lucide-react';
+import { MuscleTile } from '../../components/MuscleIcon';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Card, Modal, PageHeader } from '../../components/ui';
@@ -66,6 +68,7 @@ export function PlanPage() {
                         : undefined
                     }
                     prev={list[i - 1]}
+                    muscle={exercises?.get(p.exerciseId)?.muscleGroup}
                   />
                 ))}
               </ul>
@@ -84,13 +87,14 @@ export function PlanPage() {
   );
 }
 
-function PdeRow({ pde, name, hint, prev }: { pde: PlanDayExercise; name: string; hint?: string; prev?: PlanDayExercise }) {
+function PdeRow({ pde, name, hint, prev, muscle }: { pde: PlanDayExercise; name: string; hint?: string; prev?: PlanDayExercise; muscle?: string }) {
   const [edit, setEdit] = useState(false);
   const [v, setV] = useState({ sets: pde.sets, repMin: pde.repMin, repMax: pde.repMax });
   return (
     <li className="py-2">
       <div className="flex items-center gap-2">
-        <button type="button" className="flex-1 text-left" onClick={() => setEdit((e) => !e)}>
+        <MuscleTile muscle={muscle} />
+        <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setEdit((e) => !e)}>
           {name}
           <span className="block text-xs text-slate-500">
             {pde.sets} × {pde.repMin}–{pde.repMax}
@@ -107,11 +111,11 @@ function PdeRow({ pde, name, hint, prev }: { pde: PlanDayExercise; name: string;
               await patch('planDayExercises', prev.id, { order: pde.order === prev.order ? pde.order + 1 : pde.order });
             }}
           >
-            ↑
+            <ArrowUp size={16} />
           </button>
         )}
         <button type="button" aria-label="Entfernen" className="px-2 text-slate-500" onClick={() => remove('planDayExercises', pde.id)}>
-          ✕
+          <X size={16} />
         </button>
       </div>
       {edit && (

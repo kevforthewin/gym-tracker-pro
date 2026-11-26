@@ -59,7 +59,7 @@ export function CardioCard() {
       </div>
       {data.top.length > 0 && (
         <p className="mt-2 text-xs text-slate-400">
-          8 Wochen: {data.top.map(([k, m]) => `${cardioKind(k).icon} ${cardioKind(k).label} ${Math.round(m)} min`).join(' · ')}
+          8 Wochen: {data.top.map(([k, m]) => `${cardioKind(k).label} ${Math.round(m)} min`).join(' · ')}
           {data.km > 0 && ` · ${fmtNumber(data.km, 1)} km`}
         </p>
       )}

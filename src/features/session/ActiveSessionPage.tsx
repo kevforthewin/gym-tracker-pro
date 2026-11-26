@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { MapPin } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, EmptyState, Modal, PageHeader } from '../../components/ui';
@@ -268,7 +269,9 @@ function ProgressBar({ gymName, done, planned, volume }: { gymName: string; done
   const c = 2 * Math.PI * r;
   return (
     <div className="sticky top-0 z-10 -mx-4 mb-4 flex items-center gap-3 bg-black/90 px-4 py-2 backdrop-blur">
-      <span className="chip max-w-[45%] truncate bg-slate-800 px-3 py-1.5 text-sm text-slate-200">📍 {gymName}</span>
+      <span className="chip max-w-[45%] gap-1 truncate bg-slate-800 px-3 py-1.5 text-sm text-slate-200">
+        <MapPin size={14} className="shrink-0" /> <span className="truncate">{gymName}</span>
+      </span>
       <span className="flex-1 text-right text-sm text-slate-400">
         <span className="font-bold tabular-nums text-white">{volume.toLocaleString('de-DE')}</span> kg
       </span>

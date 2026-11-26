@@ -4,6 +4,7 @@
  * Alternativ „Ohne Hersteller“: nur die Übung wählen.
  */
 import { useMemo, useState } from 'react';
+import { MuscleTile } from '../../components/MuscleIcon';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { all } from '../../local/db';
 import { SPLIT_LABEL } from '../../domain/dashboard';
@@ -175,8 +176,9 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
 function ModelRow({ model, exercise, onPick }: { model: EquipmentModel; exercise?: Exercise; onPick: () => void }) {
   return (
     <li>
-      <button type="button" className="flex w-full items-baseline justify-between gap-3 px-3 py-2.5 text-left" onClick={onPick}>
-        <span className="min-w-0">
+      <button type="button" className="flex w-full items-center gap-3 px-3 py-2.5 text-left" onClick={onPick}>
+        <MuscleTile muscle={exercise?.muscleGroup} />
+        <span className="min-w-0 flex-1">
           <span className="block font-medium">{model.name}</span>
           <span className="block text-xs text-slate-500">{exercise?.name}</span>
         </span>
