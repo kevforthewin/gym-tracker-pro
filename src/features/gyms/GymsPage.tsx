@@ -32,7 +32,7 @@ export function GymsPage() {
             <Card className="flex items-center justify-between">
               <div>
                 <p className="font-semibold">{g.name}</p>
-                <p className="text-xs text-slate-500">{[g.chain, g.city].filter(Boolean).join(' · ') || '—'}</p>
+                <p className="text-xs text-slate-500">{[g.chain, g.district ?? g.city].filter(Boolean).join(' · ') || '—'}</p>
               </div>
               <span className="text-sm text-slate-500">{counts?.get(g.id) ?? 0} Geräte ›</span>
             </Card>

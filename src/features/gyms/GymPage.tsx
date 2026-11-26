@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronRight, ExternalLink } from 'lucide-react';
 import { UscPlans } from './UscPlans';
+import { MergeGym } from './MergeGym';
 import { MuscleTile } from '../../components/MuscleIcon';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -152,6 +153,8 @@ export function GymPage() {
             </section>
           ))}
       </div>
+
+      {gym.createdBy && gym.createdBy === me && !gym.uscPlans && <MergeGym gym={gym} />}
 
       <button type="button" className="mt-8 w-full py-2 text-sm text-slate-500" onClick={leave}>
         Gym aus meiner Liste entfernen
