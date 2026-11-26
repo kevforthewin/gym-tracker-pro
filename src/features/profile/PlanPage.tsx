@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUp, Share2, X } from 'lucide-react';
+import { ArrowUp, Check, Plus, Share2, X } from 'lucide-react';
 import { MuscleTile } from '../../components/MuscleIcon';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -8,7 +8,7 @@ import { encodePlan } from '../../domain/planShare';
 import { exportPlan } from '../../local/plans';
 import { alive, all, db, patch, remove, save } from '../../local/db';
 import { SPLIT_LABEL } from '../../domain/dashboard';
-import { slotById } from '../../domain/slots';
+import { repsFor, slotById, SLOTS } from '../../domain/slots';
 import { PlanVolumeCard } from './PlanVolumeCard';
 import { DeloadCard } from './DeloadCard';
 import { isCardioExercise, type PlanDay, type PlanDayExercise, type Split } from '../../model/types';
@@ -179,27 +179,65 @@ function PdeRow({ pde, name, hint, prev, muscle }: { pde: PlanDayExercise; name:
 
 function AddPdeModal({ day, count, onClose }: { day: PlanDay; count: number; onClose: () => void }) {
   const [q, setQ] = useState('');
+  const [added, setAdded] = useState<string[]>([]);
   const exercises = useLiveQuery(() => all('exercises'), []);
   const t = q.trim().toLowerCase();
   const list = (exercises ?? []).filter((e) => !isCardioExercise(e) && (!t || e.name.toLowerCase().includes(t) || e.muscleGroup?.toLowerCase().includes(t)));
-  const add = async (exerciseId: string, endurance: boolean) => {
-    await save('planDayExercises', { planDayId: day.id, exerciseId, order: count, sets: endurance ? 1 : 3, repMin: 8, repMax: 12 });
-    onClose();
+  const slots = SLOTS.filter((sl) => !t || sl.label.toLowerCase().includes(t));
+  // Bereich des Tages zuerst (z. B. „Push A“ → Push-Übungen oben)
+  const dayName = day.name.toLowerCase();
+  const first: Split | undefined = /push|brust|schulter/.test(dayName) ? 'push' : /pull|rücken|ruecken/.test(dayName) ? 'pull' : /leg|bein|lower/.test(dayName) ? 'legs' : undefined;
+  const order: Split[] = first ? [first, ...(['push', 'pull', 'legs', 'other'] as Split[]).filter((x) => x !== first)] : ['push', 'pull', 'legs', 'other'];
+
+  const addExercise = async (exerciseId: string, endurance: boolean, label: string) => {
+    await save('planDayExercises', { planDayId: day.id, exerciseId, order: count + added.length, sets: endurance ? 1 : 3, repMin: 8, repMax: 12 });
+    setAdded((a) => [...a, label]);
   };
+  const addSlot = async (slotId: string) => {
+    const sl = slotById(slotId)!;
+    await save('planDayExercises', { planDayId: day.id, exerciseId: sl.alternatives[0], slotId, order: count + added.length, ...repsFor(sl) });
+    setAdded((a) => [...a, sl.label]);
+  };
+  const isAdded = (label: string) => added.includes(label);
+
   return (
-    <Modal open onClose={onClose} title={`Übung zu ${day.name}`}>
-      <input className="input mb-3" placeholder="Suchen" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
-      {(['push', 'pull', 'legs', 'other'] as Split[]).map((s) => {
+    <Modal open onClose={onClose} title={`Übungen zu ${day.name}`}>
+      <p className="mb-2 text-xs text-slate-500">Antippen fügt sofort hinzu – wähle beliebig viele nacheinander.</p>
+      <input className="input mb-3" placeholder="Suchen" value={q} onChange={(e) => setQ(e.target.value)} />
+      {slots.length > 0 && (
+        <section className="mb-4">
+          <h3 className="label">Bewegungen (passen sich dem Gym an)</h3>
+          <div className="flex flex-wrap gap-1.5">
+            {slots.map((sl) => (
+              <button
+                key={sl.id}
+                type="button"
+                onClick={() => addSlot(sl.id)}
+                className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-sm ${isAdded(sl.label) ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-200'}`}
+              >
+                {isAdded(sl.label) ? <Check size={14} /> : <Plus size={14} />}
+                {sl.label}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+      {order.map((s) => {
         const items = list.filter((e) => e.split === s).sort((a, b) => a.name.localeCompare(b.name, 'de'));
         if (!items.length) return null;
         return (
           <section key={s} className="mb-3">
-            <h3 className="mb-1 text-xs font-semibold uppercase text-slate-500">{SPLIT_LABEL[s]}</h3>
+            <h3 className="label">{s === 'other' ? 'Rumpf & Sonstiges' : SPLIT_LABEL[s]}</h3>
             <ul className="divide-y divide-slate-800">
               {items.map((e) => (
                 <li key={e.id}>
-                  <button type="button" className="w-full py-2 text-left text-sm" onClick={() => add(e.id, e.type === 'time_distance')}>
-                    {e.name} <span className="text-xs text-slate-500">· {e.muscleGroup}</span>
+                  <button type="button" className="flex w-full items-center gap-3 py-2 text-left text-sm" onClick={() => addExercise(e.id, e.type === 'time_distance', e.name)}>
+                    <MuscleTile muscle={e.muscleGroup} exerciseId={e.id} />
+                    <span className="min-w-0 flex-1">
+                      {e.name}
+                      <span className="block text-xs text-slate-500">{e.muscleGroup}</span>
+                    </span>
+                    {isAdded(e.name) && <Check size={18} className="text-emerald-400" />}
                   </button>
                 </li>
               ))}
@@ -207,6 +245,17 @@ function AddPdeModal({ day, count, onClose }: { day: PlanDay; count: number; onC
           </section>
         );
       })}
+      {added.length > 0 && (
+        <div className="sticky bottom-0 -mx-5 mt-3 flex items-center gap-3 border-t border-slate-800 bg-slate-900 px-5 pb-1 pt-3">
+          <span className="min-w-0 flex-1 text-sm">
+            <span className="flex items-center gap-1 font-semibold text-emerald-400">
+              <Check size={16} /> {added.length} hinzugefügt
+            </span>
+            <span className="block truncate text-xs text-slate-500">Zuletzt: {added[added.length - 1]}</span>
+          </span>
+          <Button onClick={onClose}>Fertig</Button>
+        </div>
+      )}
     </Modal>
   );
 }

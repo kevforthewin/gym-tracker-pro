@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronRight, ExternalLink } from 'lucide-react';
+import { ChevronRight, ExternalLink, Plus } from 'lucide-react';
 import { UscPlans } from './UscPlans';
 import { MergeGym } from './MergeGym';
 import { MuscleTile } from '../../components/MuscleIcon';
@@ -23,7 +23,7 @@ export function GymPage() {
   const gym = useLiveQuery(() => db.gyms.get(id), [id]);
   const machines = useLiveQuery(() => gymMachines(id), [id]);
   const me = useLiveQuery(currentUserId, []);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<false | { split?: Split }>(false);
   const [open, setOpen] = useState<MachineView | null>(null);
   const [sort, setSort] = useState<'split' | 'exercise' | 'az'>('split');
   const stats = useLiveQuery(async () => {
@@ -52,7 +52,7 @@ export function GymPage() {
   const sorted = [...(machines ?? [])].sort((a, b) => a.label.localeCompare(b.label, 'de'));
   const groups =
     sort === 'split'
-      ? SPLIT_ORDER.map((s) => ({ key: s, title: SPLIT_LABEL[s], items: sorted.filter((m) => (m.exercise?.split ?? 'other') === s) }))
+      ? SPLIT_ORDER.map((s) => ({ key: s, title: s === 'other' ? 'Rumpf & Sonstiges' : SPLIT_LABEL[s], items: sorted.filter((m) => (m.exercise?.split ?? 'other') === s) }))
       : sort === 'exercise'
         ? [...new Set(sorted.map((m) => m.exercise?.name ?? '?'))]
             .sort((a, b) => a.localeCompare(b, 'de'))
@@ -85,7 +85,6 @@ export function GymPage() {
           </>
         }
         back={() => nav('/gyms')}
-        right={<Button onClick={() => setAdding(true)}>+ Gerät</Button>}
       />
       <StatRow
         items={[
@@ -99,7 +98,7 @@ export function GymPage() {
         <div className="mt-4">
           <EmptyState title="Noch keine Geräte erfasst.">
             <p className="mb-3 text-sm">Was du hier anlegst, sehen auch andere Mitglieder dieses Gyms.</p>
-            <Button onClick={() => setAdding(true)}>Erstes Gerät hinzufügen</Button>
+            <Button onClick={() => setAdding({})}>Erstes Gerät hinzufügen</Button>
           </EmptyState>
         </div>
       ) : (
@@ -119,7 +118,7 @@ export function GymPage() {
 
       <div className="mt-4 space-y-5">
         {groups
-          .filter((g) => g.items.length)
+          .filter((g) => g.items.length || (sort === 'split' && machines?.length))
           .map((g) => (
             <section key={g.key}>
               {g.title && (
@@ -149,6 +148,18 @@ export function GymPage() {
                     </button>
                   );
                 })}
+                {sort === 'split' && (
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-semibold text-slate-300 active:bg-slate-800"
+                    onClick={() => setAdding({ split: g.key as Split })}
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-dashed border-slate-600">
+                      <Plus size={18} />
+                    </span>
+                    Gerät zu {g.title} hinzufügen
+                  </button>
+                )}
               </Card>
             </section>
           ))}
@@ -156,11 +167,22 @@ export function GymPage() {
 
       {gym.createdBy && gym.createdBy === me && !gym.uscPlans && <MergeGym gym={gym} />}
 
-      <button type="button" className="mt-8 w-full py-2 text-sm text-slate-500" onClick={leave}>
+      <button type="button" className="mt-8 w-full py-2 pb-16 text-sm text-slate-500" onClick={leave}>
         Gym aus meiner Liste entfernen
       </button>
 
-      <AddMachineModal gymId={id} open={adding} onClose={() => setAdding(false)} />
+      <AddMachineModal gymId={id} open={!!adding} split={adding ? adding.split : undefined} onClose={() => setAdding(false)} />
+
+      {/* Schnell erreichbar: schwebender Button unten rechts (Daumenbereich) */}
+      {!!machines?.length && !adding && !open && (
+        <button
+          type="button"
+          onClick={() => setAdding({})}
+          className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-20 flex items-center gap-1.5 rounded-full bg-white px-5 py-3 font-semibold text-black shadow-2xl active:bg-slate-200"
+        >
+          <Plus size={18} strokeWidth={2.5} /> Gerät
+        </button>
+      )}
       {open && <MachineModal machine={open} mine={open.createdBy === me} onClose={() => setOpen(null)} />}
     </>
   );

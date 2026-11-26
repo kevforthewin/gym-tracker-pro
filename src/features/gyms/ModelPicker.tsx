@@ -3,10 +3,11 @@
  * nach Bereich gruppiert, Gerätename vorne, Produktlinie hinten, ohne Modellnummern.
  * Alternativ „Ohne Hersteller“: nur die Übung wählen.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Check } from 'lucide-react';
 import { MuscleTile } from '../../components/MuscleIcon';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { all } from '../../local/db';
+import { all, getMeta, setMeta } from '../../local/db';
 import { SPLIT_LABEL } from '../../domain/dashboard';
 import { isCardioExercise, type EquipmentModel, type Exercise, type Split } from '../../model/types';
 
@@ -22,11 +23,17 @@ export function ModelPicker({
   onPick,
   preferExerciseId,
   allowNoModel = true,
+  split,
+  added,
 }: {
   onPick: (r: PickResult) => void;
   /** passende Übung (z. B. beim Zuordnen eines bestehenden Geräts) – wird oben gezeigt */
   preferExerciseId?: string;
   allowNoModel?: boolean;
+  /** nur Geräte/Übungen dieses Bereichs (Push/Pull/Legs) */
+  split?: Split;
+  /** schon hinzugefügt (Schlüssel `m:<modelId>` bzw. `e:<exerciseId>`) – wird abgehakt */
+  added?: Set<string>;
 }) {
   const data = useLiveQuery(async () => {
     const [models, mfs, exercises] = await Promise.all([all('equipmentModels'), all('manufacturers'), all('exercises')]);
@@ -38,8 +45,25 @@ export function ModelPicker({
       exercises: new Map(exercises.map((e) => [e.id, e])),
     };
   }, []);
-  const [mf, setMf] = useState('');
-  const [line, setLine] = useState('');
+  const [mf, setMfState] = useState('');
+  // zuletzt gewählten Hersteller merken – beim Hinzufügen mehrerer Geräte spart das Tipps
+  useEffect(() => {
+    getMeta<string>('lastManufacturer').then((v) => v && setMfState((cur) => cur || v));
+  }, []);
+  const setMf = (v: string) => {
+    setMfState(v);
+    setMeta('lastManufacturer', v);
+  };
+  const [line, setLineState] = useState('');
+  // zuletzt gewählte Produktlinie je Hersteller merken
+  useEffect(() => {
+    if (!mf || mf === NONE) return;
+    getMeta<Record<string, string>>('lastLine').then((m) => m?.[mf] && setLineState(m[mf]));
+  }, [mf]);
+  const setLine = (l: string) => {
+    setLineState(l);
+    getMeta<Record<string, string>>('lastLine').then((m) => setMeta('lastLine', { ...(m ?? {}), [mf]: l }));
+  };
   const [q, setQ] = useState('');
 
   const list = useMemo(() => {
@@ -47,9 +71,10 @@ export function ModelPicker({
     const t = q.trim().toLowerCase();
     return data.models
       .filter((m) => m.manufacturerId === mf && (!line || m.line === line))
+      .filter((m) => !split || data.exercises.get(m.exerciseId!)?.split === split)
       .filter((m) => !t || `${m.name} ${m.line} ${data.exercises.get(m.exerciseId!)?.name}`.toLowerCase().includes(t))
       .sort((a, b) => a.name.localeCompare(b.name, 'en') || (a.line ?? '').localeCompare(b.line ?? ''));
-  }, [data, mf, line, q]);
+  }, [data, mf, line, q, split]);
 
   const lines = useMemo(
     () => [...new Set((data?.models ?? []).filter((m) => m.manufacturerId === mf).map((m) => m.line ?? ''))].filter(Boolean).sort(),
@@ -60,9 +85,10 @@ export function ModelPicker({
     if (!data || mf !== NONE) return [];
     const t = q.trim().toLowerCase();
     return [...data.exercises.values()]
-      .filter((e) => !isCardioExercise(e) && (!t || e.name.toLowerCase().includes(t) || e.muscleGroup?.toLowerCase().includes(t)))
+      .filter((e) => !isCardioExercise(e) && (!split || e.split === split))
+      .filter((e) => !t || e.name.toLowerCase().includes(t) || e.muscleGroup?.toLowerCase().includes(t))
       .sort((a, b) => a.name.localeCompare(b.name, 'de'));
-  }, [data, mf, q]);
+  }, [data, mf, q, split]);
 
   if (!data) return null;
   const exOf = (m: EquipmentModel) => data.exercises.get(m.exerciseId!)!;
@@ -76,7 +102,7 @@ export function ModelPicker({
         value={mf}
         onChange={(e) => {
           setMf(e.target.value);
-          setLine('');
+          setLineState('');
           setQ('');
         }}
       >
@@ -109,7 +135,7 @@ export function ModelPicker({
           {preferred.length > 0 && (
             <Group title={`Passend zu ${data.exercises.get(preferExerciseId!)?.name}`}>
               {preferred.map((m) => (
-                <ModelRow key={m.id} model={m} exercise={exOf(m)} onPick={() => onPick({ exercise: exOf(m), model: m })} />
+                <ModelRow key={m.id} model={m} exercise={exOf(m)} done={added?.has(`m:${m.id}`)} onPick={() => onPick({ exercise: exOf(m), model: m })} />
               ))}
             </Group>
           )}
@@ -119,7 +145,7 @@ export function ModelPicker({
             return (
               <Group key={s} title={SPLIT_LABEL[s] === 'Frei' ? 'Rumpf & Sonstiges' : SPLIT_LABEL[s]}>
                 {items.map((m) => (
-                  <ModelRow key={m.id} model={m} exercise={exOf(m)} onPick={() => onPick({ exercise: exOf(m), model: m })} />
+                  <ModelRow key={m.id} model={m} exercise={exOf(m)} done={added?.has(`m:${m.id}`)} onPick={() => onPick({ exercise: exOf(m), model: m })} />
                 ))}
               </Group>
             );
@@ -143,9 +169,13 @@ export function ModelPicker({
               <Group key={s} title={SPLIT_LABEL[s] === 'Frei' ? 'Rumpf & Sonstiges' : SPLIT_LABEL[s]}>
                 {items.map((e) => (
                   <li key={e.id}>
-                    <button type="button" className="w-full px-3 py-2.5 text-left" onClick={() => onPick({ exercise: e })}>
-                      {e.name}
-                      <span className="block text-xs text-slate-500">{e.muscleGroup}</span>
+                    <button type="button" className="flex w-full items-center gap-3 px-3 py-2.5 text-left" onClick={() => onPick({ exercise: e })}>
+                      <MuscleTile muscle={e.muscleGroup} exerciseId={e.id} />
+                      <span className="min-w-0 flex-1">
+                        {e.name}
+                        <span className="block text-xs text-slate-500">{e.muscleGroup}</span>
+                      </span>
+                      {added?.has(`e:${e.id}`) && <Check size={18} className="text-emerald-400" />}
                     </button>
                   </li>
                 ))}
@@ -173,7 +203,7 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-function ModelRow({ model, exercise, onPick }: { model: EquipmentModel; exercise?: Exercise; onPick: () => void }) {
+function ModelRow({ model, exercise, onPick, done }: { model: EquipmentModel; exercise?: Exercise; onPick: () => void; done?: boolean }) {
   return (
     <li>
       <button type="button" className="flex w-full items-center gap-3 px-3 py-2.5 text-left" onClick={onPick}>
@@ -183,6 +213,7 @@ function ModelRow({ model, exercise, onPick }: { model: EquipmentModel; exercise
           <span className="block text-xs text-slate-500">{exercise?.name}</span>
         </span>
         <span className="shrink-0 text-right text-xs text-slate-400">{model.line}</span>
+        {done && <Check size={18} className="shrink-0 text-emerald-400" />}
       </button>
     </li>
   );
