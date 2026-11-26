@@ -7,11 +7,16 @@ import { importLegacy } from '../../import/applyImport';
 import { cloudEnabled } from '../../sync/supabase';
 import { runSync, signInWithEmail, signOut, useSyncStore, verifyEmailCode } from '../../sync/useSync';
 import { PRIVATE_TABLES, SHARED_TABLES } from '../../model/types';
+import { Feedback } from './Feedback';
+import { Tour } from '../../demo/Tour';
+import { hasDemo, loadDemo, removeDemo } from '../../demo/demoData';
 
 export function ProfilePage() {
   const plans = useLiveQuery(async () => (await all('plans')).sort((a, b) => a.order - b.order), []);
   const goal = useLiveQuery(async () => (await getMeta<number>('weeklyGoal')) ?? 3, []);
   const [msg, setMsg] = useState('');
+  const [tour, setTour] = useState(false);
+  const demo = useLiveQuery(hasDemo, []);
   const file = useRef<HTMLInputElement>(null);
 
   const newPlan = async () => {
@@ -55,7 +60,7 @@ export function ProfilePage() {
             </Button>
           </div>
           {plans?.length === 0 && <p className="text-sm text-slate-500">Noch kein Plan. Ohne Plan kannst du „Freies Training“ starten.</p>}
-          <ul className="divide-y divide-slate-700">
+          <ul className="divide-y divide-slate-800">
             {plans?.map((p) => (
               <li key={p.id}>
                 <Link to={`/profile/plan/${p.id}`} className="flex justify-between py-2.5">
@@ -97,6 +102,19 @@ export function ProfilePage() {
             Alle Daten exportieren (JSON)
           </Button>
         </Card>
+
+        <Feedback />
+
+        <Card className="space-y-2">
+          <h2 className="font-semibold">Hilfe</h2>
+          <Button variant="secondary" className="w-full" onClick={() => setTour(true)}>
+            Rundgang ansehen
+          </Button>
+          <Button variant="secondary" className="w-full" onClick={() => (demo ? confirm('Beispieldaten entfernen?') && removeDemo() : loadDemo())}>
+            {demo ? 'Beispieldaten entfernen' : 'Beispieldaten laden'}
+          </Button>
+        </Card>
+        {tour && <Tour onDone={() => setTour(false)} />}
       </div>
     </>
   );

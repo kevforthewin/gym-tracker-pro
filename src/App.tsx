@@ -7,6 +7,7 @@ import { GymPage } from './features/gyms/GymPage';
 import { ActiveSessionPage } from './features/session/ActiveSessionPage';
 import { SummaryPage } from './features/session/SummaryPage';
 import { ProfilePage } from './features/profile/ProfilePage';
+import { HistoryPage } from './features/history/HistoryPage';
 import { PlanPage } from './features/profile/PlanPage';
 import { useSyncBootstrap } from './sync/useSync';
 
@@ -16,9 +17,10 @@ export default function App() {
   useSyncBootstrap();
   return (
     <HashRouter>
-      <main className="mx-auto max-w-2xl px-4 pb-[calc(5rem+env(safe-area-inset-bottom))]">
+      <main className="mx-auto max-w-2xl px-4 pb-[calc(7rem+env(safe-area-inset-bottom))]">
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/history" element={<HistoryPage />} />
           <Route path="/gyms" element={<GymsPage />} />
           <Route path="/gyms/:id" element={<GymPage />} />
           <Route path="/session/:id" element={<ActiveSessionPage />} />

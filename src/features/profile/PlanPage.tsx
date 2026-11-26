@@ -50,7 +50,7 @@ export function PlanPage() {
                   Umbenennen
                 </button>
               </div>
-              <ul className="divide-y divide-slate-700">
+              <ul className="divide-y divide-slate-800">
                 {list.map((p, i) => (
                   <PdeRow key={p.id} pde={p} name={exercises?.get(p.exerciseId)?.name ?? '?'} prev={list[i - 1]} />
                 ))}
@@ -139,7 +139,7 @@ function AddPdeModal({ day, count, onClose }: { day: PlanDay; count: number; onC
         return (
           <section key={s} className="mb-3">
             <h3 className="mb-1 text-xs font-semibold uppercase text-slate-500">{SPLIT_LABEL[s]}</h3>
-            <ul className="divide-y divide-slate-700">
+            <ul className="divide-y divide-slate-800">
               {items.map((e) => (
                 <li key={e.id}>
                   <button type="button" className="w-full py-2 text-left text-sm" onClick={() => add(e.id, e.type === 'time_distance')}>

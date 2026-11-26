@@ -63,7 +63,7 @@ export function AddMachineModal({
           {!!models?.length && (
             <section>
               <h3 className="mb-1 text-xs font-semibold uppercase text-slate-500">Gerätemodelle</h3>
-              <ul className="divide-y divide-slate-700">
+              <ul className="divide-y divide-slate-800">
                 {models.map((m) => (
                   <li key={m.id}>
                     <button
@@ -81,7 +81,7 @@ export function AddMachineModal({
           {!!exMatches.length && (
             <section>
               <h3 className="mb-1 text-xs font-semibold uppercase text-slate-500">Ohne Modell (nur Übung)</h3>
-              <ul className="divide-y divide-slate-700">
+              <ul className="divide-y divide-slate-800">
                 {exMatches.map((e) => (
                   <li key={e.id}>
                     <button type="button" className="w-full py-2 text-left text-sm" onClick={() => setPick({ exerciseId: e.id, label: e.name, step: 2.5 })}>

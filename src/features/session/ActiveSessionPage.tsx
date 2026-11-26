@@ -133,6 +133,14 @@ export function ActiveSessionPage() {
     nav('/', { replace: true });
   };
 
+  const work = sets.filter((s) => !s.isWarmup);
+  const doneSets = work.length;
+  const plannedSets = Math.max(
+    doneSets,
+    units.reduce((n, u) => n + Math.max(prescriptionOf(u.pde).sets, setsOf(u).filter((s) => !s.isWarmup).length), 0),
+  );
+  const volume = Math.round(work.filter((s) => !s.excluded).reduce((a, s) => a + (s.weightKg ?? 0) * (s.reps ?? 0), 0));
+
   const machinesFor = (u?: Unit): GymMachine[] => (u ? machines.filter((m) => m.exerciseId === u.exercise.id) : []);
 
   return (
@@ -146,7 +154,7 @@ export function ActiveSessionPage() {
           </Button>
         }
       />
-      <p className="-mt-2 mb-4 text-sm text-slate-500">📍 {gym?.name}</p>
+      <ProgressBar gymName={gym?.name ?? ''} done={doneSets} planned={plannedSets} volume={volume} />
 
       <div className="space-y-3">
         {units.map((u) => (
@@ -198,6 +206,43 @@ export function ActiveSessionPage() {
   );
 }
 
+/** Fortschritt im Training: Gym, Sätze als Ring, bisheriges Volumen – bewusst ohne Uhr. */
+function ProgressBar({ gymName, done, planned, volume }: { gymName: string; done: number; planned: number; volume: number }) {
+  const pct = planned ? Math.min(1, done / planned) : 0;
+  const r = 15;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="sticky top-0 z-10 -mx-4 mb-4 flex items-center gap-3 bg-black/90 px-4 py-2 backdrop-blur">
+      <span className="chip max-w-[45%] truncate bg-slate-800 px-3 py-1.5 text-sm text-slate-200">📍 {gymName}</span>
+      <span className="flex-1 text-right text-sm text-slate-400">
+        <span className="font-bold tabular-nums text-white">{volume.toLocaleString('de-DE')}</span> kg
+      </span>
+      <span className="flex items-center gap-2">
+        <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden>
+          <circle cx="18" cy="18" r={r} fill="none" stroke="#3a3a3c" strokeWidth="4" />
+          <circle
+            cx="18"
+            cy="18"
+            r={r}
+            fill="none"
+            stroke={pct >= 1 ? '#34d399' : '#fff'}
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeDasharray={`${pct * c} ${c}`}
+            transform="rotate(-90 18 18)"
+          />
+        </svg>
+        <span className="text-sm">
+          <span className="font-bold tabular-nums">
+            {done}/{planned}
+          </span>{' '}
+          <span className="text-slate-400">Sätze</span>
+        </span>
+      </span>
+    </div>
+  );
+}
+
 function AddExerciseModal({
   open,
   onClose,
@@ -221,7 +266,7 @@ function AddExerciseModal({
     <Modal open={open} onClose={onClose} title="Übung hinzufügen">
       <input className="input mb-3" placeholder="Suchen" value={q} onChange={(e) => setQ(e.target.value)} />
       <h3 className="mb-1 text-xs font-semibold uppercase text-slate-500">Geräte in diesem Gym</h3>
-      <ul className="mb-3 divide-y divide-slate-700">
+      <ul className="mb-3 divide-y divide-slate-800">
         {ms.map((m) => (
           <li key={m.id}>
             <button type="button" className="w-full py-2 text-left text-sm" onClick={() => onAdd(m.exerciseId, m.id)}>
@@ -232,7 +277,7 @@ function AddExerciseModal({
         {!ms.length && <li className="py-2 text-sm text-slate-500">Keine passenden Geräte – im Gym-Tab anlegen.</li>}
       </ul>
       <h3 className="mb-1 text-xs font-semibold uppercase text-slate-500">Freihantel & Körpergewicht</h3>
-      <ul className="divide-y divide-slate-700">
+      <ul className="divide-y divide-slate-800">
         {free.map((e) => (
           <li key={e.id}>
             <button type="button" className="w-full py-2 text-left text-sm" onClick={() => onAdd(e.id)}>

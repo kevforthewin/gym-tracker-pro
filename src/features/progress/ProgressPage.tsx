@@ -1,53 +1,37 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { ProgressCards } from './ProgressCards';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Card, EmptyState, PageHeader } from '../../components/ui';
+import { Card, PageHeader } from '../../components/ui';
 import { all, db } from '../../local/db';
-import { counted, exerciseHistSets, machineViews } from '../../local/queries';
+import { exerciseHistSets, machineViews } from '../../local/queries';
 import { consistency, SPLIT_LABEL } from '../../domain/dashboard';
 import { e1rm } from '../../domain/metrics';
 import { fmtNumber, fmtShortDate } from '../../domain/units';
-import type { Exercise, Split } from '../../model/types';
+import type { Exercise } from '../../model/types';
 
 /** Kategorische Farben (für dunklen Hintergrund geprüft) */
 const COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#9085e9', '#0ca30c'];
-const SPLITS: Split[] = ['push', 'pull', 'legs', 'other'];
 
 export default function ProgressPage() {
-  const exercises = useLiveQuery(async () => {
-    const sets = (await all('sets')).filter(counted);
-    const used = new Map<string, number>();
-    for (const s of sets) used.set(s.exerciseId, (used.get(s.exerciseId) ?? 0) + 1);
-    return (await all('exercises')).filter((e) => used.has(e.id)).sort((a, b) => a.name.localeCompare(b.name, 'de'));
-  }, []);
-  const [exId, setExId] = useState('');
-  const ex = exercises?.find((e) => e.id === exId) ?? exercises?.[0];
+  const [params, setParams] = useSearchParams();
+  const exId = params.get('ex');
+  const ex = useLiveQuery(async () => (exId ? await db.exercises.get(exId) : undefined), [exId]);
+
+  if (exId && ex)
+    return (
+      <>
+        <PageHeader title={ex.name} subtitle={SPLIT_LABEL[ex.split]} back={() => setParams({})} />
+        <ExerciseProgress exercise={ex} />
+      </>
+    );
 
   return (
     <>
       <PageHeader title="Fortschritt" />
       <ConsistencyStrip />
-      {exercises && exercises.length === 0 ? (
-        <EmptyState title="Noch keine Trainingsdaten." />
-      ) : (
-        <>
-          <select className="input mb-3" value={ex?.id ?? ''} onChange={(e) => setExId(e.target.value)} aria-label="Übung">
-            {SPLITS.map((s) => {
-              const list = exercises?.filter((e) => e.split === s) ?? [];
-              return list.length ? (
-                <optgroup key={s} label={SPLIT_LABEL[s]}>
-                  {list.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : null;
-            })}
-          </select>
-          {ex && <ExerciseProgress exercise={ex} />}
-        </>
-      )}
+      <ProgressCards onOpen={(id) => setParams({ ex: id })} />
     </>
   );
 }
@@ -64,7 +48,7 @@ function ConsistencyStrip() {
   }, []);
   if (!c) return null;
   return (
-    <dl className="mb-4 flex justify-between rounded-lg bg-slate-800/60 px-3 py-2 text-center">
+    <dl className="flex justify-between rounded-card bg-slate-900 px-4 py-3 text-center">
       <Stat label="letzte 7 Tage" value={`${c.last7}/${c.goal}`} good={c.last7 >= c.goal} />
       <Stat label="Ø/Woche (4 W.)" value={fmtNumber(c.avg4w, 1)} good={c.avg4w >= c.goal} />
       <Stat label={c.inGoalWeeks === 1 ? 'Woche im Ziel' : 'Wochen im Ziel'} value={c.inGoalWeeks ? String(c.inGoalWeeks) : '–'} good={c.inGoalWeeks > 0} />

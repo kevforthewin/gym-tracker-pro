@@ -5,6 +5,8 @@ import { Button, Card, EmptyState, PageHeader } from '../../components/ui';
 import { all, getMeta, save, setMeta } from '../../local/db';
 import { myGyms } from '../../local/queries';
 import { fmtDate } from '../../domain/units';
+import { weekStart } from '../../domain/insights';
+import { DemoBanner, Tour, useFirstRunTour } from '../../demo/Tour';
 import { SyncBadge } from '../profile/SyncBadge';
 
 export function HomePage() {
@@ -24,6 +26,8 @@ export function HomePage() {
     return { gym: new Map(g.map((x) => [x.id, x.name])), day: new Map(d.map((x) => [x.id, x.name])) };
   }, []);
 
+  const firstRun = useFirstRunTour();
+  const [tourDone, setTourDone] = useState(false);
   const [gymId, setGymId] = useState('');
   const [dayId, setDayId] = useState('');
   useEffect(() => {
@@ -45,11 +49,51 @@ export function HomePage() {
     nav(`/session/${s.id}`);
   };
 
+  if (firstRun && !tourDone && gyms?.length === 0) return <Tour onDone={() => setTourDone(true)} />;
+
+  const ws = weekStart(Date.now());
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(ws);
+    d.setDate(d.getDate() + i);
+    const from = d.getTime();
+    const to = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime();
+    return { d, trained: !!sessions?.some((x) => x.startedAt >= from && x.startedAt < to), today: d.toDateString() === new Date().toDateString() };
+  });
+  const thisWeek = week.filter((x) => x.trained).length;
+
   return (
     <>
-      <PageHeader title="Training" right={<SyncBadge />} />
+      <PageHeader
+        title="Training"
+        subtitle={new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}
+        right={<SyncBadge />}
+      />
+      <DemoBanner />
+      <section className="mb-4 rounded-card bg-slate-900 p-4">
+        <div className="mb-3 flex items-baseline justify-between">
+          <h2 className="text-lg font-bold">Diese Woche</h2>
+          <span className="text-sm text-slate-500">
+            {thisWeek} {thisWeek === 1 ? 'Training' : 'Trainings'} · {last7} in 7 Tagen
+          </span>
+        </div>
+        <div className="grid grid-cols-7 gap-1 text-center">
+          {week.map(({ d, trained, today }) => (
+            <div key={d.toISOString()} className={`rounded-2xl py-1.5 ${today ? 'bg-white text-black' : ''}`}>
+              <p className={`text-[10px] font-semibold uppercase ${today ? '' : 'text-slate-500'}`}>{d.toLocaleDateString('de-DE', { weekday: 'short' }).slice(0, 2)}</p>
+              <p className="text-base font-bold tabular-nums">{d.getDate()}</p>
+              <span
+                className={`mx-auto mt-1 flex h-7 w-7 items-center justify-center rounded-full text-xs ${
+                  trained ? (today ? 'bg-black text-white' : 'bg-white text-black') : today ? 'border-2 border-black/20' : 'border-2 border-slate-800'
+                }`}
+              >
+                {trained ? '🏋' : ''}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
       {active && (
-        <Link to={`/session/${active.id}`} className="mb-4 block rounded-xl bg-emerald-600 p-4 font-semibold text-white">
+        <Link to={`/session/${active.id}`} className="mb-4 block rounded-card bg-emerald-500 p-4 font-semibold text-black">
           ▶ Laufendes Training fortsetzen · {names?.day.get(active.planDayId ?? '') ?? 'Freies Training'}
         </Link>
       )}
@@ -61,6 +105,7 @@ export function HomePage() {
         </EmptyState>
       ) : (
         <Card className="space-y-3">
+          <h2 className="text-lg font-bold">Training starten</h2>
           <label className="block">
             <span className="label">Gym</span>
             <select className="input" value={validGym} onChange={(e) => setGymId(e.target.value)}>
@@ -88,29 +133,23 @@ export function HomePage() {
           </Button>
           {!days?.length && (
             <p className="text-xs text-slate-500">
-              Tipp: Unter <Link to="/profile" className="text-emerald-400">Profil → Pläne</Link> legst du Trainingstage an (z. B. Push/Pull/Legs).
+              Tipp: Unter <Link to="/profile" className="text-white underline">Profil → Pläne</Link> legst du Trainingstage an (z. B. Push/Pull/Legs).
             </p>
           )}
         </Card>
       )}
 
-      <div className="mt-4 grid grid-cols-2 gap-2 text-center">
-        <Card className="p-3">
-          <p className="text-2xl font-bold tabular-nums">{last7}</p>
-          <p className="text-xs text-slate-500">Trainings letzte 7 Tage</p>
-        </Card>
-        <Card className="p-3">
-          <p className="text-2xl font-bold tabular-nums">{gyms?.length ?? 0}</p>
-          <p className="text-xs text-slate-500">Gyms</p>
-        </Card>
-      </div>
-
       {!!sessions?.length && (
         <section className="mt-6">
-          <h2 className="mb-2 text-sm font-semibold text-slate-400">Letzte Trainings</h2>
-          <Card className="divide-y divide-slate-700 p-0">
-            {sessions.slice(0, 8).map((s) => (
-              <Link key={s.id} to={`/session/${s.id}${s.finishedAt ? '/summary' : ''}`} className="flex justify-between px-4 py-2.5 text-sm">
+          <div className="mb-2 flex items-baseline justify-between">
+            <h2 className="text-xl font-bold">Zuletzt</h2>
+            <Link to="/history" className="text-sm text-slate-400">
+              Alle ›
+            </Link>
+          </div>
+          <Card className="divide-y divide-slate-800 p-0">
+            {sessions.slice(0, 3).map((s) => (
+              <Link key={s.id} to={`/session/${s.id}${s.finishedAt ? '/summary' : ''}`} className="flex justify-between px-4 py-3">
                 <span>
                   {names?.day.get(s.planDayId ?? '') ?? 'Freies Training'}
                   <span className="block text-xs text-slate-500">{names?.gym.get(s.gymId)}</span>

@@ -72,7 +72,7 @@ function AddGymModal({ open, onClose }: { open: boolean; onClose: () => void }) 
       {!creating ? (
         <div className="space-y-3">
           <input className="input" placeholder="Suchen: Name, Kette oder Stadt" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
-          <ul className="divide-y divide-slate-700">
+          <ul className="divide-y divide-slate-800">
             {results?.map((g) => (
               <li key={g.id}>
                 <button type="button" className="flex w-full items-center justify-between py-2.5 text-left" disabled={mine?.has(g.id)} onClick={() => take(g.id)}>

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Card, EmptyState, Field, Modal, PageHeader } from '../../components/ui';
+import { Button, Card, EmptyState, Field, Modal, PageHeader, Segmented, StatRow } from '../../components/ui';
 import { all, currentUserId, db, patch, remove, save } from '../../local/db';
-import { gymMachines, type MachineView } from '../../local/queries';
+import { counted, gymMachines, type MachineView } from '../../local/queries';
+import { e1rm } from '../../domain/metrics';
+import { fmtNumber } from '../../domain/units';
 import { SPLIT_LABEL } from '../../domain/dashboard';
 import type { Split } from '../../model/types';
 import { AddMachineModal } from './MachineForm';
@@ -18,6 +20,20 @@ export function GymPage() {
   const me = useLiveQuery(currentUserId, []);
   const [adding, setAdding] = useState(false);
   const [open, setOpen] = useState<MachineView | null>(null);
+  const [sort, setSort] = useState<'split' | 'exercise' | 'az'>('split');
+  const stats = useLiveQuery(async () => {
+    const sessions = (await db.sessions.where('gymId').equals(id).toArray()).filter((s) => !s.deletedAt);
+    const machineIds = new Set((await db.gymMachines.where('gymId').equals(id).toArray()).map((m) => m.id));
+    const perMachine = new Map<string, { best: { w: number; r: number; v: number }; last: number }>();
+    for (const st of (await db.sets.toArray()).filter((x) => counted(x) && x.machineId && machineIds.has(x.machineId))) {
+      const cur = perMachine.get(st.machineId!) ?? { best: { w: 0, r: 0, v: -1 }, last: 0 };
+      const v = e1rm(st.weightKg ?? 0, st.reps ?? 0);
+      if (v > cur.best.v) cur.best = { w: st.weightKg ?? 0, r: st.reps ?? 0, v };
+      cur.last = Math.max(cur.last, st.createdAt);
+      perMachine.set(st.machineId!, cur);
+    }
+    return { visits: sessions.length, last: Math.max(0, ...sessions.map((x) => x.startedAt)), perMachine };
+  }, [id]);
 
   if (gym === undefined) return null;
   if (!gym)
@@ -28,11 +44,16 @@ export function GymPage() {
       </>
     );
 
-  const groups = SPLIT_ORDER.map((s) => ({
-    split: s,
-    items: (machines ?? []).filter((m) => (m.exercise?.split ?? 'other') === s).sort((a, b) => a.label.localeCompare(b.label, 'de')),
-  })).filter((g) => g.items.length);
-
+  const sorted = [...(machines ?? [])].sort((a, b) => a.label.localeCompare(b.label, 'de'));
+  const groups =
+    sort === 'split'
+      ? SPLIT_ORDER.map((s) => ({ key: s, title: SPLIT_LABEL[s], items: sorted.filter((m) => (m.exercise?.split ?? 'other') === s) }))
+      : sort === 'exercise'
+        ? [...new Set(sorted.map((m) => m.exercise?.name ?? '?'))]
+            .sort((a, b) => a.localeCompare(b, 'de'))
+            .map((n) => ({ key: n, title: n, items: sorted.filter((m) => (m.exercise?.name ?? '?') === n) }))
+        : [{ key: 'az', title: '', items: sorted }];
+  const lastVisit = stats?.last ? relDay(stats.last, true) : '—';
   const leave = async () => {
     if (!confirm(`„${gym.name}“ aus deinen Gyms entfernen? Deine Trainings bleiben erhalten.`)) return;
     for (const l of (await all('userGyms')).filter((l) => l.gymId === id)) await remove('userGyms', l.id);
@@ -41,35 +62,79 @@ export function GymPage() {
 
   return (
     <>
-      <PageHeader title={gym.name} back={() => nav('/gyms')} right={<Button onClick={() => setAdding(true)}>+ Gerät</Button>} />
-      <p className="-mt-2 mb-4 text-sm text-slate-500">{[gym.chain, gym.address, gym.city].filter(Boolean).join(' · ')}</p>
+      <PageHeader
+        title={gym.name}
+        subtitle={[gym.chain, gym.address, gym.city].filter(Boolean).join(' · ') || undefined}
+        back={() => nav('/gyms')}
+        right={<Button onClick={() => setAdding(true)}>+ Gerät</Button>}
+      />
+      <StatRow
+        items={[
+          { label: 'Besuche', value: stats?.visits ?? 0 },
+          { label: 'Letzter Besuch', value: lastVisit },
+          { label: 'Geräte', value: machines?.length ?? 0 },
+        ]}
+      />
 
-      {machines?.length === 0 && (
-        <EmptyState title="Noch keine Geräte erfasst.">
-          <p className="mb-3 text-sm">Was du hier anlegst, sehen auch andere Mitglieder dieses Gyms.</p>
-          <Button onClick={() => setAdding(true)}>Erstes Gerät hinzufügen</Button>
-        </EmptyState>
+      {machines?.length === 0 ? (
+        <div className="mt-4">
+          <EmptyState title="Noch keine Geräte erfasst.">
+            <p className="mb-3 text-sm">Was du hier anlegst, sehen auch andere Mitglieder dieses Gyms.</p>
+            <Button onClick={() => setAdding(true)}>Erstes Gerät hinzufügen</Button>
+          </EmptyState>
+        </div>
+      ) : (
+        <>
+          <h2 className="section-title">Geräte</h2>
+          <Segmented
+            value={sort}
+            onChange={setSort}
+            options={[
+              { value: 'split', label: 'Bereich' },
+              { value: 'exercise', label: 'Übung' },
+              { value: 'az', label: 'A–Z' },
+            ]}
+          />
+        </>
       )}
 
-      <div className="space-y-4">
-        {groups.map((g) => (
-          <section key={g.split}>
-            <h2 className="mb-1.5 text-sm font-semibold text-slate-400">
-              {SPLIT_LABEL[g.split]} <span className="font-normal">· {g.items.length}</span>
-            </h2>
-            <Card className="divide-y divide-slate-700 p-0">
-              {g.items.map((m) => (
-                <button key={m.id} type="button" className="block w-full px-4 py-2.5 text-left" onClick={() => setOpen(m)}>
-                  <span className="font-medium">{m.label}</span>
-                  <span className="block text-xs text-slate-500">
-                    {m.exercise?.name}
-                    {m.modelTitle ? ` · ${m.manufacturer?.name ?? ''} ${m.model?.line ?? ''}` : ' · ohne Modell'} · {m.weightStepKg} kg Schritte
-                  </span>
-                </button>
-              ))}
-            </Card>
-          </section>
-        ))}
+      <div className="mt-4 space-y-5">
+        {groups
+          .filter((g) => g.items.length)
+          .map((g) => (
+            <section key={g.key}>
+              {g.title && (
+                <h3 className="mb-2 text-base font-semibold">
+                  {g.title} <span className="font-normal text-slate-500">{g.items.length}</span>
+                </h3>
+              )}
+              <Card className="divide-y divide-slate-800 p-0">
+                {g.items.map((m) => {
+                  const st = stats?.perMachine.get(m.id);
+                  return (
+                    <button key={m.id} type="button" className="flex w-full items-center gap-3 px-4 py-3 text-left" onClick={() => setOpen(m)}>
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-800" aria-hidden>
+                        {m.exercise?.freeWeight ? '🏋️' : '⚙️'}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold">{m.label}</span>
+                        <span className="block truncate text-xs text-slate-500">{m.modelTitle ?? `${m.exercise?.name ?? ''} · ohne Modell`}</span>
+                      </span>
+                      {st && st.best.v > 0 && (
+                        <span className="shrink-0 text-right text-sm">
+                          <span className="font-semibold tabular-nums">
+                            <span className="text-best">✦</span> {fmtNumber(st.best.w)} × {st.best.r}
+                          </span>
+                          <span className="block text-xs text-slate-500">{relDay(st.last)}</span>
+                        </span>
+                      )}
+                      <span className="text-slate-600">›</span>
+                    </button>
+                  );
+                })}
+              </Card>
+            </section>
+          ))}
       </div>
 
       <button type="button" className="mt-8 w-full py-2 text-sm text-slate-500" onClick={leave}>
@@ -133,4 +198,12 @@ function MachineModal({ machine, mine, onClose }: { machine: MachineView; mine: 
       </div>
     </Modal>
   );
+}
+
+function relDay(ts: number, short = false): string {
+  const d = Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(ts).setHours(0, 0, 0, 0)) / 86400000);
+  if (d <= 0) return 'Heute';
+  if (d === 1) return 'Gestern';
+  if (d < 7) return short ? `vor ${d} T.` : `vor ${d} Tagen`;
+  return new Date(ts).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
 }

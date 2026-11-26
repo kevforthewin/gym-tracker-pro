@@ -107,7 +107,7 @@ function Group({ title, items, accent }: { title: string; items: ExerciseSummary
       <h2 className="mb-1.5 text-sm font-semibold">
         {title} <span className="font-normal text-slate-500">· {items.length}</span>
       </h2>
-      <Card className="divide-y divide-slate-700 p-0">
+      <Card className="divide-y divide-slate-800 p-0">
         {items.map((it) => (
           <div key={it.stationId} className="flex items-baseline justify-between gap-2 px-4 py-2 text-sm">
             <span>{it.label}</span>

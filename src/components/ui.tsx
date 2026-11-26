@@ -1,12 +1,12 @@
 import { type ButtonHTMLAttributes, type ReactNode, useEffect } from 'react';
 
-type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
+type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'accent';
 const variants: Record<Variant, string> = {
-  primary: 'bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 disabled:bg-emerald-600/40 disabled:text-white/50',
-  secondary:
-    'bg-slate-200 text-slate-900 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600',
-  danger: 'bg-red-600 text-white hover:bg-red-700',
-  ghost: 'text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800',
+  primary: 'bg-white text-black active:bg-slate-200 disabled:bg-white/30 disabled:text-black/50',
+  accent: 'bg-emerald-500 text-black active:bg-emerald-600 disabled:bg-emerald-500/30',
+  secondary: 'bg-slate-800 text-slate-50 active:bg-slate-700 disabled:text-slate-500',
+  danger: 'bg-red-500/15 text-red-400 active:bg-red-500/25',
+  ghost: 'text-slate-400 active:bg-slate-800',
 };
 
 export function Button({
@@ -17,54 +17,60 @@ export function Button({
   return (
     <button
       type="button"
-      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 font-semibold transition disabled:cursor-not-allowed ${variants[variant]} ${className}`}
+      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 py-2 font-semibold transition disabled:cursor-not-allowed ${variants[variant]} ${className}`}
       {...props}
     />
   );
 }
 
-export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
+/** Runder Icon-Button (z. B. ⋯, Zurück) */
+export function IconButton({ label, children, onClick, className = '' }: { label: string; children: ReactNode; onClick?: () => void; className?: string }) {
   return (
-    <div className={`rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800/60 ${className}`}>
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-800 text-lg text-slate-200 active:bg-slate-700 ${className}`}
+    >
       {children}
-    </div>
+    </button>
   );
 }
 
-export function PageHeader({ title, right, back }: { title: string; right?: ReactNode; back?: () => void }) {
+export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <div className={`rounded-card bg-slate-900 p-4 ${className}`}>{children}</div>;
+}
+
+/** Großer Seitentitel im iOS-Stil; mit `back` kompakte Kopfzeile mit Zurück-Knopf. */
+export function PageHeader({ title, subtitle, right, back }: { title: string; subtitle?: ReactNode; right?: ReactNode; back?: () => void }) {
   return (
-    <header className="sticky top-0 z-10 -mx-4 mb-4 flex items-center gap-2 border-b border-slate-200 bg-slate-50/90 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
-      {back && (
-        <button type="button" onClick={back} className="-ml-2 rounded p-2 text-xl" aria-label="Zurück">
-          ‹
-        </button>
-      )}
-      <h1 className="flex-1 truncate text-xl font-bold">{title}</h1>
-      {right}
+    <header className="mb-5 pt-[max(env(safe-area-inset-top),0.75rem)]">
+      <div className="flex min-h-10 items-center justify-between gap-2">
+        {back ? (
+          <IconButton label="Zurück" onClick={back}>
+            ‹
+          </IconButton>
+        ) : (
+          <span />
+        )}
+        <div className="flex items-center gap-2">{right}</div>
+      </div>
+      <h1 className="mt-2 text-[2rem] font-bold leading-tight tracking-tight">{title}</h1>
+      {subtitle && <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>}
     </header>
   );
 }
 
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-slate-500 dark:border-slate-700">
-      <p className="font-medium">{title}</p>
+    <div className="rounded-card border border-dashed border-slate-700 p-6 text-center text-slate-400">
+      <p className="font-semibold text-slate-200">{title}</p>
       {children && <div className="mt-3">{children}</div>}
     </div>
   );
 }
 
-export function Modal({
-  open,
-  onClose,
-  title,
-  children,
-}: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  children: ReactNode;
-}) {
+export function Modal({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -73,19 +79,19 @@ export function Modal({
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] dark:bg-slate-800 sm:rounded-2xl"
+        className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-[1.75rem] bg-slate-900 p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:rounded-[1.75rem]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold">{title}</h2>
-          <button type="button" onClick={onClose} className="rounded p-2 text-slate-500" aria-label="Schließen">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xl font-bold">{title}</h2>
+          <IconButton label="Schließen" onClick={onClose} className="h-8 w-8 text-sm">
             ✕
-          </button>
+          </IconButton>
         </div>
         {children}
       </div>
@@ -106,7 +112,6 @@ export function Stepper({
   value: number | undefined;
   onChange: (v: number | undefined) => void;
   step: number;
-  /** Optionale feste Werte (z. B. Gewichtsstufen des Geräts). */
   steps?: number[];
   min?: number;
   label: string;
@@ -124,15 +129,15 @@ export function Stepper({
   return (
     <div className="flex-1">
       <span className="label text-center">{label}</span>
-      <div className="flex items-stretch overflow-hidden rounded-lg border border-slate-300 dark:border-slate-600">
-        <button type="button" className="w-11 bg-slate-100 text-xl dark:bg-slate-700" onClick={() => bump(-step)} aria-label={`${label} verringern`}>
+      <div className="flex items-stretch overflow-hidden rounded-2xl bg-slate-800">
+        <button type="button" className="w-12 text-2xl text-slate-300 active:bg-slate-700" onClick={() => bump(-step)} aria-label={`${label} verringern`}>
           −
         </button>
         <div className="relative flex-1">
           <input
             inputMode="decimal"
             aria-label={label}
-            className="h-11 w-full bg-white text-center text-lg font-semibold outline-none dark:bg-slate-800"
+            className="h-12 w-full bg-transparent text-center text-xl font-bold tabular-nums outline-none"
             value={value ?? ''}
             onChange={(e) => {
               const v = e.target.value.replace(',', '.');
@@ -141,9 +146,9 @@ export function Stepper({
               if (!Number.isNaN(n)) onChange(n);
             }}
           />
-          {suffix && <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">{suffix}</span>}
+          {suffix && <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">{suffix}</span>}
         </div>
-        <button type="button" className="w-11 bg-slate-100 text-xl dark:bg-slate-700" onClick={() => bump(step)} aria-label={`${label} erhöhen`}>
+        <button type="button" className="w-12 text-2xl text-slate-300 active:bg-slate-700" onClick={() => bump(step)} aria-label={`${label} erhöhen`}>
           +
         </button>
       </div>
@@ -160,29 +165,38 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   );
 }
 
-export function Tabs<T extends string>({
-  value,
-  onChange,
-  options,
-}: {
-  value: T;
-  onChange: (v: T) => void;
-  options: { value: T; label: string }[];
-}) {
+export function Segmented<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[] }) {
   return (
-    <div className="mb-4 flex gap-1 rounded-lg bg-slate-200 p-1 dark:bg-slate-800">
+    <div className="flex gap-1 rounded-full bg-slate-900 p-1">
       {options.map((o) => (
         <button
           key={o.value}
           type="button"
           onClick={() => onChange(o.value)}
-          className={`flex-1 rounded-md px-3 py-2 text-sm font-semibold ${
-            value === o.value ? 'bg-white shadow dark:bg-slate-600' : 'text-slate-600 dark:text-slate-400'
-          }`}
+          className={`flex-1 rounded-full px-3 py-2 text-sm font-semibold ${value === o.value ? 'bg-slate-700 text-white' : 'text-slate-500'}`}
         >
           {o.label}
         </button>
       ))}
     </div>
   );
+}
+
+/** Kennzahlen-Leiste (z. B. Besuche · Letzter Besuch · Geräte) */
+export function StatRow({ items }: { items: { label: string; value: ReactNode }[] }) {
+  return (
+    <dl className="grid divide-x divide-slate-800 rounded-card bg-slate-900" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+      {items.map((i) => (
+        <div key={i.label} className="px-4 py-3">
+          <dd className="text-2xl font-bold tabular-nums leading-tight">{i.value}</dd>
+          <dt className="text-xs text-slate-500">{i.label}</dt>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** Gelbes „Neuer Bestwert“-Abzeichen */
+export function BestBadge({ label = 'Neuer Bestwert' }: { label?: string }) {
+  return <span className="chip bg-best px-1.5 py-0 text-[10px] uppercase tracking-wide text-black">✦ {label}</span>;
 }
