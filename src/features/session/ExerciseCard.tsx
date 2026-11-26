@@ -50,7 +50,7 @@ export function ExerciseCard({ sessionId, exercise, machine, alternatives, presc
   const modelLine = useLiveQuery(async () => {
     const m = machine?.modelId ? await db.equipmentModels.get(machine.modelId) : undefined;
     const mf = m ? await db.manufacturers.get(m.manufacturerId) : undefined;
-    return m ? [mf?.name, m.line, m.name].filter(Boolean).join(' ') : undefined;
+    return m ? `${m.name} · ${[mf?.name, m.line].filter(Boolean).join(' ')}` : undefined;
   }, [machine?.modelId]);
   const [menu, setMenu] = useState(false);
 

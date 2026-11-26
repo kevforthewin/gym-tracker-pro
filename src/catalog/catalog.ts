@@ -262,7 +262,7 @@ export const LEGACY_MODEL_ALIAS: Record<string, string | null> = Object.fromEntr
   ),
 );
 
-/** Anzeigename eines Modells: „Hoist ROC-IT Selectorized · Chest Press (RS-2301)“ */
-export function modelTitle(m: Pick<EquipmentModel, 'line' | 'name' | 'modelNumber'>, mf?: Pick<Manufacturer, 'name'>): string {
-  return [mf?.name, m.line].filter(Boolean).join(' ') + ' · ' + m.name + (m.modelNumber ? ` (${m.modelNumber})` : '');
+/** Anzeigename eines Modells: „Chest Press · Hoist ROC-IT Selectorized“ (Gerät vorne, Linie hinten, ohne Modellnummer) */
+export function modelTitle(m: Pick<EquipmentModel, 'line' | 'name'>, mf?: Pick<Manufacturer, 'name'>): string {
+  return `${m.name} · ${[mf?.name, m.line].filter(Boolean).join(' ')}`;
 }

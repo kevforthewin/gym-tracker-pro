@@ -9,6 +9,7 @@ import { fmtNumber } from '../../domain/units';
 import { SPLIT_LABEL } from '../../domain/dashboard';
 import type { Split } from '../../model/types';
 import { AddMachineModal } from './MachineForm';
+import { ModelPicker } from './ModelPicker';
 
 const SPLIT_ORDER: Split[] = ['push', 'pull', 'legs', 'other'];
 
@@ -151,6 +152,13 @@ function MachineModal({ machine, mine, onClose }: { machine: MachineView; mine: 
   const note = useLiveQuery(async () => (await all('machineNotes')).find((n) => n.machineId === machine.id), [machine.id]);
   const [text, setText] = useState<string | null>(null);
   const [step, setStep] = useState(String(machine.weightStepKg));
+  const [choosing, setChoosing] = useState(false);
+  const current = useLiveQuery(async () => {
+    const m = await db.gymMachines.get(machine.id);
+    const model = m?.modelId ? await db.equipmentModels.get(m.modelId) : undefined;
+    const mf = model ? await db.manufacturers.get(model.manufacturerId) : undefined;
+    return { model, mf };
+  }, [machine.id]);
   const value = text ?? note?.note ?? '';
 
   const saveAll = async () => {
@@ -164,13 +172,50 @@ function MachineModal({ machine, mine, onClose }: { machine: MachineView; mine: 
   };
 
   return (
-    <Modal open onClose={onClose} title={machine.label}>
+    <>
+    <Modal open={choosing} onClose={() => setChoosing(false)} title="Modell zuordnen">
+      <ModelPicker
+        preferExerciseId={machine.exerciseId}
+        allowNoModel={false}
+        onPick={async ({ model }) => {
+          if (model) await patch('gymMachines', machine.id, { modelId: model.id });
+          setChoosing(false);
+        }}
+      />
+      {current?.model && (
+        <button
+          type="button"
+          className="mt-3 w-full py-2 text-sm text-slate-400"
+          onClick={async () => {
+            await patch('gymMachines', machine.id, { modelId: undefined });
+            setChoosing(false);
+          }}
+        >
+          Modell entfernen
+        </button>
+      )}
+    </Modal>
+    <Modal open={!choosing} onClose={onClose} title={machine.label}>
       <div className="space-y-3 text-sm">
-        <p className="text-slate-400">
-          {machine.exercise?.name}
-          <br />
-          {machine.modelTitle ?? 'Kein Modell hinterlegt'}
-        </p>
+        <p className="text-slate-400">{machine.exercise?.name}</p>
+        <div className="flex items-center gap-3 rounded-2xl bg-slate-800/60 px-3 py-2.5">
+          <span className="min-w-0 flex-1">
+            <span className="label mb-0">Modell</span>
+            {current?.model ? (
+              <>
+                <span className="block font-medium text-slate-100">{current.model.name}</span>
+                <span className="block text-xs text-slate-500">{[current.mf?.name, current.model.line].filter(Boolean).join(' ')}</span>
+              </>
+            ) : (
+              <span className="block text-slate-400">Kein Modell hinterlegt</span>
+            )}
+          </span>
+          {mine && (
+            <Button variant="secondary" className="min-h-9 px-3 py-1 text-sm" onClick={() => setChoosing(true)}>
+              {current?.model ? 'Ändern' : 'Zuordnen'}
+            </Button>
+          )}
+        </div>
         <Field label="Meine Einstellungen (privat)">
           <textarea className="input" rows={2} placeholder="z. B. Sitz 4, Polster 2" value={value} onChange={(e) => setText(e.target.value)} />
         </Field>
@@ -197,6 +242,7 @@ function MachineModal({ machine, mine, onClose }: { machine: MachineView; mine: 
         </div>
       </div>
     </Modal>
+    </>
   );
 }
 
