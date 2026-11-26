@@ -8,6 +8,7 @@ import { fmtDate } from '../../domain/units';
 import { weekStart } from '../../domain/insights';
 import { isoOf } from '../../domain/dashboard';
 import { CardioSheet } from '../cardio/CardioSheet';
+import { suggestNextDay } from '../../local/plans';
 import { DemoBanner, Tour, useFirstRunTour } from '../../demo/Tour';
 import { SyncBadge } from '../profile/SyncBadge';
 
@@ -34,13 +35,15 @@ export function HomePage() {
   const [tourDone, setTourDone] = useState(false);
   const [gymId, setGymId] = useState('');
   const [dayId, setDayId] = useState('');
+  const [nextDayId, setNextDayId] = useState<string | undefined>();
   useEffect(() => {
-    getMeta<{ gymId: string; dayId: string }>('lastStart').then((v) => {
-      if (v) {
-        setGymId(v.gymId);
-        setDayId(v.dayId);
-      }
-    });
+    (async () => {
+      const v = await getMeta<{ gymId: string; dayId: string }>('lastStart');
+      const next = await suggestNextDay();
+      if (v) setGymId(v.gymId);
+      setNextDayId(next);
+      setDayId(next ?? v?.dayId ?? '');
+    })();
   }, []);
 
   const active = sessions?.find((s) => !s.finishedAt && Date.now() - s.startedAt < 6 * 3600_000);
@@ -146,6 +149,7 @@ export function HomePage() {
                 <option key={d.id} value={d.id}>
                   {d.name}
                   {(days?.filter((x) => x.planId !== d.planId).length ?? 0) > 0 ? ` (${d.planName})` : ''}
+                  {d.id === nextDayId ? ' – als Nächstes' : ''}
                 </option>
               ))}
             </select>

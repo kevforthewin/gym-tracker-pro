@@ -31,12 +31,14 @@ interface Props {
   onPickMachine: () => void;
   onMove?: (dir: 'up' | 'down') => void;
   onRemove?: () => void;
+  /** Platz aus einer Vorlage: Übung kann gegen eine Alternative getauscht werden (solange noch kein Satz gespeichert ist) */
+  slot?: { label: string; options: { exercise: Exercise; inGym: boolean }[]; onSwap: (exerciseId: string) => void };
 }
 
 const scoreOf = (type: Exercise['type'], s: WorkSet) =>
   type === 'time_distance' ? (s.distanceM ?? 0) || (s.durationSec ?? 0) : type === 'bodyweight' && !s.weightKg ? (s.reps ?? 0) : e1rm(s.weightKg ?? 0, s.reps ?? 0);
 
-export function ExerciseCard({ sessionId, exercise, machine, alternatives, prescription, sets, onPickMachine, onMove, onRemove }: Props) {
+export function ExerciseCard({ sessionId, exercise, machine, alternatives, prescription, sets, onPickMachine, onMove, onRemove, slot }: Props) {
   const nav = useNavigate();
   const needsMachine = !machine && !exercise.freeWeight && alternatives.length > 0;
   const info = useLiveQuery(
@@ -72,10 +74,13 @@ export function ExerciseCard({ sessionId, exercise, machine, alternatives, presc
   return (
     <section className="rounded-card bg-slate-900 p-4">
       <div className="flex items-start gap-2">
-        <h3 className="flex-1 pt-1 text-xl font-bold leading-tight">
-          {done && <span className="text-emerald-400">✓ </span>}
-          {exercise.name}
-        </h3>
+        <div className="flex-1 pt-1">
+          {slot && <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{slot.label}</p>}
+          <h3 className="text-xl font-bold leading-tight">
+            {done && <span className="text-emerald-400">✓ </span>}
+            {exercise.name}
+          </h3>
+        </div>
         <IconButton label="Fortschritt" onClick={() => nav(`/progress?ex=${exercise.id}`)}>
           📈
         </IconButton>
@@ -133,6 +138,31 @@ export function ExerciseCard({ sessionId, exercise, machine, alternatives, presc
 
       <Modal open={menu} onClose={() => setMenu(false)} title={exercise.name}>
         <div className="space-y-2">
+          {slot && (
+            <section className="mb-2">
+              <h3 className="label">Übung für „{slot.label}“</h3>
+              <ul className="divide-y divide-slate-800 rounded-2xl bg-slate-800/50">
+                {slot.options.map((o) => (
+                  <li key={o.exercise.id}>
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between px-3 py-2.5 text-left"
+                      onClick={() => {
+                        slot.onSwap(o.exercise.id);
+                        setMenu(false);
+                      }}
+                    >
+                      <span>
+                        {o.exercise.id === exercise.id && '✓ '}
+                        {o.exercise.name}
+                      </span>
+                      <span className="text-xs text-slate-500">{o.inGym ? (o.exercise.freeWeight ? 'Freihantel' : 'im Gym') : 'kein Gerät erfasst'}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           <Button
             variant="secondary"
             className="w-full"

@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Card, Modal, PageHeader } from '../../components/ui';
 import { alive, all, db, patch, remove, save } from '../../local/db';
 import { SPLIT_LABEL } from '../../domain/dashboard';
+import { slotById } from '../../domain/slots';
 import { isCardioExercise, type PlanDay, type PlanDayExercise, type Split } from '../../model/types';
 
 export function PlanPage() {
@@ -52,7 +53,20 @@ export function PlanPage() {
               </div>
               <ul className="divide-y divide-slate-800">
                 {list.map((p, i) => (
-                  <PdeRow key={p.id} pde={p} name={exercises?.get(p.exerciseId)?.name ?? '?'} prev={list[i - 1]} />
+                  <PdeRow
+                    key={p.id}
+                    pde={p}
+                    name={slotById(p.slotId)?.label ?? exercises?.get(p.exerciseId)?.name ?? '?'}
+                    hint={
+                      p.slotId
+                        ? (slotById(p.slotId)?.alternatives ?? [])
+                            .map((a) => exercises?.get(a)?.name)
+                            .filter(Boolean)
+                            .join(' / ')
+                        : undefined
+                    }
+                    prev={list[i - 1]}
+                  />
                 ))}
               </ul>
               <Button variant="secondary" className="mt-2 w-full" onClick={() => setAdding(d)}>
@@ -70,7 +84,7 @@ export function PlanPage() {
   );
 }
 
-function PdeRow({ pde, name, prev }: { pde: PlanDayExercise; name: string; prev?: PlanDayExercise }) {
+function PdeRow({ pde, name, hint, prev }: { pde: PlanDayExercise; name: string; hint?: string; prev?: PlanDayExercise }) {
   const [edit, setEdit] = useState(false);
   const [v, setV] = useState({ sets: pde.sets, repMin: pde.repMin, repMax: pde.repMax });
   return (
@@ -80,6 +94,7 @@ function PdeRow({ pde, name, prev }: { pde: PlanDayExercise; name: string; prev?
           {name}
           <span className="block text-xs text-slate-500">
             {pde.sets} × {pde.repMin}–{pde.repMax}
+            {hint && ` · ${hint}`}
           </span>
         </button>
         {prev && (

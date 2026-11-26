@@ -116,6 +116,8 @@ export interface PlanDayExercise extends Owned {
   repMax: number;
   targetDurationSec?: number;
   targetDistanceM?: number;
+  /** Bewegungsplatz aus einer Vorlage (z. B. „horizontal-push“) – Übung wird je Gym aufgelöst */
+  slotId?: string;
 }
 
 export interface Session extends Owned {
@@ -125,6 +127,8 @@ export interface Session extends Owned {
   finishedAt?: number;
   /** Plan-Übung → im Training verwendetes Gerät (Mapping/Tausch) */
   machineFor?: Record<string, string>;
+  /** Plan-Übung mit Bewegungsplatz → in diesem Training gewählte Übung */
+  exerciseFor?: Record<string, string>;
   /** Eigene Reihenfolge der Plan-Übungen in diesem Training */
   order?: string[];
   notes?: string;

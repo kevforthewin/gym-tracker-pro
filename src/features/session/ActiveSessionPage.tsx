@@ -4,6 +4,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button, EmptyState, Modal, PageHeader } from '../../components/ui';
 import { alive, all, db, patch, remove } from '../../local/db';
 import { lastMachineFor, prescriptionOf } from '../../local/queries';
+import { resolveSlotInGym } from '../../local/plans';
+import { slotById } from '../../domain/slots';
 import { isCardioExercise, type CardioEntry, type Exercise, type GymMachine, type PlanDayExercise, type SetEntry } from '../../model/types';
 import { CardioRow, CardioSheet } from '../cardio/CardioSheet';
 import { AddMachineModal } from '../gyms/MachineForm';
@@ -52,7 +54,9 @@ export function ActiveSessionPage() {
   const units: Unit[] = useMemo(() => {
     if (!data) return [];
     const { session, pdes, sets, exercises } = data;
-    const planUnits = pdes.map((p) => ({ key: p.id, exercise: exercises.get(p.exerciseId)!, pde: p })).filter((u) => u.exercise);
+    const planUnits = pdes
+      .map((p) => ({ key: p.id, exercise: exercises.get((p.slotId && session.exerciseFor?.[p.id]) || p.exerciseId)!, pde: p }))
+      .filter((u) => u.exercise);
     const extraKeys = (session.order ?? []).filter((k) => k.startsWith('ex:'));
     const extras = extraKeys.map((k) => ({ key: k, exercise: exercises.get(exOfKey(k))! })).filter((u) => u.exercise);
     // Sätze ohne passende Einheit (z. B. importiert) als eigene Einheiten zeigen
@@ -69,20 +73,29 @@ export function ActiveSessionPage() {
     return list.map((u, i) => ({ u, i })).sort((a, b) => rank(a.u.key) - rank(b.u.key) || a.i - b.i).map((x) => x.u);
   }, [data]);
 
-  // Geräte automatisch zuordnen: zuletzt in diesem Gym genutztes Gerät der Übung
+  // Plätze aus Vorlagen auflösen (welche Übung in diesem Gym) und Geräte zuordnen
+  // (zuletzt in diesem Gym genutztes Gerät der Übung)
   useEffect(() => {
     if (!data) return;
+    const ef = data.session.exerciseFor ?? {};
     const mf = data.session.machineFor ?? {};
-    const missing = units.filter((u) => !(u.key in mf));
-    if (!missing.length) return;
+    const slotMissing = units.filter((u) => u.pde?.slotId && !(u.key in ef));
+    const machineMissing = units.filter((u) => !(u.key in mf) && !(u.pde?.slotId && !(u.key in ef)));
+    if (!slotMissing.length && !machineMissing.length) return;
     (async () => {
-      const next = { ...mf };
-      for (const u of missing) {
-        const m = await lastMachineFor(data.session.gymId, u.exercise.id);
-        if (m) next[u.key] = m;
-        else if (u.exercise.freeWeight) next[u.key] = '';
+      const nextEf = { ...ef };
+      for (const u of slotMissing) {
+        const ex = await resolveSlotInGym(u.pde!.slotId!, data.session.gymId);
+        if (ex) nextEf[u.key] = ex;
       }
-      if (Object.keys(next).length !== Object.keys(mf).length) await patch('sessions', data.session.id, { machineFor: next });
+      const nextMf = { ...mf };
+      for (const u of machineMissing) {
+        const m = await lastMachineFor(data.session.gymId, u.exercise.id);
+        if (m) nextMf[u.key] = m;
+        else if (u.exercise.freeWeight) nextMf[u.key] = '';
+      }
+      const changed = Object.keys(nextEf).length !== Object.keys(ef).length || Object.keys(nextMf).length !== Object.keys(mf).length;
+      if (changed) await patch('sessions', data.session.id, { exerciseFor: nextEf, machineFor: nextMf });
     })();
   }, [data, units]);
 
@@ -113,6 +126,11 @@ export function ActiveSessionPage() {
     if (j < 0 || j >= keys.length) return;
     [keys[i], keys[j]] = [keys[j], keys[i]];
     setOrder(keys);
+  };
+  const swapExercise = async (u: Unit, exerciseId: string) => {
+    const nextMf = { ...mf };
+    delete nextMf[u.key];
+    await patch('sessions', session.id, { exerciseFor: { ...(session.exerciseFor ?? {}), [u.key]: exerciseId }, machineFor: nextMf });
   };
   const pickMachine = async (u: Unit, machineId: string | undefined) => {
     await patch('sessions', session.id, { machineFor: { ...mf, [u.key]: machineId ?? '' } });
@@ -175,6 +193,18 @@ export function ActiveSessionPage() {
             onPickMachine={() => setPicking(u)}
             onMove={(d) => move(u, d)}
             onRemove={u.pde ? undefined : () => setOrder(units.filter((x) => x.key !== u.key).map((x) => x.key))}
+            slot={
+              u.pde?.slotId && setsOf(u).length === 0
+                ? {
+                    label: slotById(u.pde.slotId)?.label ?? '',
+                    options: (slotById(u.pde.slotId)?.alternatives ?? [])
+                      .map((id) => data.exercises.get(id))
+                      .filter((e): e is Exercise => !!e)
+                      .map((e) => ({ exercise: e, inGym: machines.some((m) => m.exerciseId === e.id) || !!e.freeWeight })),
+                    onSwap: (id: string) => swapExercise(u, id),
+                  }
+                : undefined
+            }
           />
         ))}
       </div>

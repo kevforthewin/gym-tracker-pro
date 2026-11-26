@@ -2,12 +2,13 @@ import { useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Link } from 'react-router-dom';
 import { Button, Card, PageHeader } from '../../components/ui';
-import { all, db, getMeta, save, setMeta } from '../../local/db';
+import { all, db, getMeta, setMeta } from '../../local/db';
 import { importLegacy } from '../../import/applyImport';
 import { cloudEnabled } from '../../sync/supabase';
 import { runSync, signInWithEmail, signOut, useSyncStore, verifyEmailCode } from '../../sync/useSync';
 import { PRIVATE_TABLES, SHARED_TABLES } from '../../model/types';
 import { Feedback } from './Feedback';
+import { TemplatePicker } from './TemplatePicker';
 import { Tour } from '../../demo/Tour';
 import { hasDemo, loadDemo, removeDemo } from '../../demo/demoData';
 
@@ -19,13 +20,7 @@ export function ProfilePage() {
   const demo = useLiveQuery(hasDemo, []);
   const file = useRef<HTMLInputElement>(null);
 
-  const newPlan = async () => {
-    const name = prompt('Name des Plans', 'Push / Pull / Legs');
-    if (!name) return;
-    const p = await save('plans', { name, order: plans?.length ?? 0 });
-    if (/push/i.test(name) && /pull/i.test(name))
-      for (const [i, d] of ['Push', 'Pull', 'Legs'].entries()) await save('planDays', { planId: p.id, name: d, order: i });
-  };
+  const [picker, setPicker] = useState(false);
 
   const onImport = async (f: File) => {
     try {
@@ -55,11 +50,11 @@ export function ProfilePage() {
         <Card>
           <div className="mb-2 flex items-center justify-between">
             <h2 className="font-semibold">Pläne</h2>
-            <Button variant="secondary" className="min-h-9 px-3 py-1 text-sm" onClick={newPlan}>
+            <Button variant="secondary" className="min-h-9 px-3 py-1 text-sm" onClick={() => setPicker(true)}>
               + Plan
             </Button>
           </div>
-          {plans?.length === 0 && <p className="text-sm text-slate-500">Noch kein Plan. Ohne Plan kannst du „Freies Training“ starten.</p>}
+          {plans?.length === 0 && <p className="text-sm text-slate-500">Noch kein Plan. Starte mit einer Vorlage (Upper/Lower, Push/Pull/Legs …) oder trainiere frei.</p>}
           <ul className="divide-y divide-slate-800">
             {plans?.map((p) => (
               <li key={p.id}>
@@ -115,6 +110,7 @@ export function ProfilePage() {
           </Button>
         </Card>
         {tour && <Tour onDone={() => setTour(false)} />}
+        <TemplatePicker open={picker} onClose={() => setPicker(false)} />
       </div>
     </>
   );
