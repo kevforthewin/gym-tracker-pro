@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { all, db, getMeta, resetDb, save } from './db';
-import { createPlanFromTemplate, resolveSlotInGym, suggestNextDay } from './plans';
+import { all, db, getMeta, patch, resetDb, save } from './db';
+import { targetFor } from './queries';
+import { createPlanFromTemplate, deloadState, resolveSlotInGym, setDeloadThisWeek, suggestNextDay } from './plans';
 import { toRemote } from '../sync/mapping';
 
 describe('Pläne aus Vorlagen', () => {
@@ -44,5 +45,31 @@ describe('Pläne aus Vorlagen', () => {
     await save('sessions', { gymId: 'g', planDayId: days[3].id, startedAt: 9 });
     expect(await suggestNextDay()).toBe(days[0].id);
     expect(await db.planDays.count()).toBe(4);
+  });
+
+  it('Deload: Intervall ab erstem Training, manuell übersteuerbar, zählt nicht für Progression', async () => {
+    const plan = await createPlanFromTemplate('ppl');
+    const days = (await all('planDays')).sort((a, b) => a.order - b.order);
+    const W = 7 * 86400000;
+    const now = Date.now();
+    await save('sessions', { gymId: 'g', planDayId: days[0].id, startedAt: now - 3 * W });
+    expect((await deloadState(now)).active).toBe(false);
+    await patch('plans', plan.id, { deloadEvery: 4 });
+    expect((await deloadState(now)).active).toBe(true); // 4. Woche
+    await setDeloadThisWeek(false, now);
+    expect((await deloadState(now)).active).toBe(false);
+    expect((await deloadState(now)).manual).toBe(true);
+    await setDeloadThisWeek(null, now);
+    expect((await deloadState(now)).active).toBe(true);
+
+    // Deload-Training wird bei der Zielberechnung übersprungen
+    const ex = (await db.exercises.get('db-curl'))!;
+    const s1 = await save('sessions', { gymId: 'g', startedAt: 1 });
+    for (const i of [1, 2, 3]) await save('sets', { sessionId: s1.id, exerciseId: 'db-curl', setIndex: i, isWarmup: false, createdAt: i, weightKg: 14, reps: 12 });
+    const s2 = await save('sessions', { gymId: 'g', startedAt: 2, deload: true });
+    for (const i of [1, 2]) await save('sets', { sessionId: s2.id, exerciseId: 'db-curl', setIndex: i, isWarmup: false, createdAt: 10 + i, weightKg: 12, reps: 10 });
+    const t = await targetFor({ exercise: ex, prescription: { sets: 3, repMin: 8, repMax: 12 } });
+    expect(t.used?.sessions).toHaveLength(1);
+    expect(t.target.reason).toBe('increase');
   });
 });

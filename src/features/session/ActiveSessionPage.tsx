@@ -179,11 +179,20 @@ export function ActiveSessionPage() {
         }
       />
       <ProgressBar gymName={gym?.name ?? ''} done={doneSets} planned={plannedSets} volume={volume} />
+      {session.deload && (
+        <div className="mb-3 flex items-center gap-3 rounded-card bg-sky-500/10 px-4 py-3 text-sm text-sky-200">
+          <span className="flex-1">Deload-Woche: weniger Sätze, etwa 10 % leichter. Zählt nicht für die Steigerung.</span>
+          <button type="button" className="shrink-0 font-semibold text-white" onClick={() => patch('sessions', session.id, { deload: false })}>
+            Normal
+          </button>
+        </div>
+      )}
 
       <div className="space-y-3">
         {units.map((u) => (
           <ExerciseCard
             key={u.key}
+            deload={session.deload}
             sessionId={session.id}
             gymId={session.gymId}
             exercise={u.exercise}

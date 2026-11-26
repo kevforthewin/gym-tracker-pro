@@ -9,6 +9,7 @@ import { SummaryPage } from './features/session/SummaryPage';
 import { ProfilePage } from './features/profile/ProfilePage';
 import { HistoryPage } from './features/history/HistoryPage';
 import { PlanPage } from './features/profile/PlanPage';
+import { PlanImportPage } from './features/profile/PlanImportPage';
 import { useSyncBootstrap } from './sync/useSync';
 
 const ProgressPage = lazy(() => import('./features/progress/ProgressPage'));
@@ -35,6 +36,7 @@ export default function App() {
           />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/profile/plan/:id" element={<PlanPage />} />
+          <Route path="/plan-import" element={<PlanImportPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

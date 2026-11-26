@@ -99,6 +99,8 @@ export interface MachineNote extends Owned {
 export interface Plan extends Owned {
   name: string;
   order: number;
+  /** Deload-Woche alle N Wochen (leer = aus) */
+  deloadEvery?: number;
 }
 
 export interface PlanDay extends Owned {
@@ -129,6 +131,8 @@ export interface Session extends Owned {
   machineFor?: Record<string, string>;
   /** Plan-Übung mit Bewegungsplatz → in diesem Training gewählte Übung */
   exerciseFor?: Record<string, string>;
+  /** In einer Deload-Woche trainiert (leichter; zählt nicht für die Progression) */
+  deload?: boolean;
   /** Eigene Reihenfolge der Plan-Übungen in diesem Training */
   order?: string[];
   notes?: string;

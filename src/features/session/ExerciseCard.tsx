@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { applyDeload } from '../../domain/deload';
 import { ArrowDown, ArrowUp, ChevronRight, LineChart, MoreHorizontal, StickyNote } from 'lucide-react';
 import { MuscleTile } from '../../components/MuscleIcon';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -29,6 +30,8 @@ interface Props {
   machine?: GymMachine;
   alternatives: GymMachine[];
   prescription: Prescription;
+  /** Deload-Woche: Ziel leichter */
+  deload?: boolean;
   sets: SetEntry[];
   onPickMachine: () => void;
   onMove?: (dir: 'up' | 'down') => void;
@@ -40,7 +43,7 @@ interface Props {
 const scoreOf = (type: Exercise['type'], s: WorkSet) =>
   type === 'time_distance' ? (s.distanceM ?? 0) || (s.durationSec ?? 0) : type === 'bodyweight' && !s.weightKg ? (s.reps ?? 0) : e1rm(s.weightKg ?? 0, s.reps ?? 0);
 
-export function ExerciseCard({ sessionId, exercise, machine, alternatives, prescription, sets, onPickMachine, onMove, onRemove, slot }: Props) {
+export function ExerciseCard({ sessionId, exercise, machine, alternatives, prescription, sets, onPickMachine, onMove, onRemove, slot, deload }: Props) {
   const nav = useNavigate();
   const needsMachine = !machine && !exercise.freeWeight && alternatives.length > 0;
   const info = useLiveQuery(
@@ -56,7 +59,7 @@ export function ExerciseCard({ sessionId, exercise, machine, alternatives, presc
   }, [machine?.modelId]);
   const [menu, setMenu] = useState(false);
 
-  const target = info?.target;
+  const target = info && (deload ? applyDeload(info.target, machine?.weightStepKg || 2.5, machine?.weightSteps) : info.target);
   const used = info?.used;
   const previous = used?.sessions.at(-1)?.sets ?? [];
   const bestBefore = Math.max(0, ...(used?.sessions.flatMap((s) => s.sets.map((x) => scoreOf(exercise.type, x))) ?? []));

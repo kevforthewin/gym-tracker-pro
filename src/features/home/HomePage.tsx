@@ -9,7 +9,7 @@ import { fmtDate } from '../../domain/units';
 import { weekStart } from '../../domain/insights';
 import { isoOf } from '../../domain/dashboard';
 import { CardioSheet } from '../cardio/CardioSheet';
-import { suggestNextDay } from '../../local/plans';
+import { deloadState, setDeloadThisWeek, suggestNextDay } from '../../local/plans';
 import { DemoBanner, Tour, useFirstRunTour } from '../../demo/Tour';
 import { SyncBadge } from '../profile/SyncBadge';
 
@@ -26,6 +26,7 @@ export function HomePage() {
   }, []);
   const sessions = useLiveQuery(async () => (await all('sessions')).sort((a, b) => b.startedAt - a.startedAt), []);
   const cardio = useLiveQuery(() => all('cardio'), []);
+  const deload = useLiveQuery(() => deloadState(), []);
   const [cardioOpen, setCardioOpen] = useState(false);
   const names = useLiveQuery(async () => {
     const [g, d] = await Promise.all([all('gyms'), all('planDays')]);
@@ -51,7 +52,8 @@ export function HomePage() {
   const validGym = gyms?.some((g) => g.id === gymId) ? gymId : (gyms?.[0]?.id ?? '');
 
   const start = async () => {
-    const s = await save('sessions', { gymId: validGym, planDayId: dayId || undefined, startedAt: Date.now() });
+    const deload = (await deloadState()).active;
+    const s = await save('sessions', { gymId: validGym, planDayId: dayId || undefined, startedAt: Date.now(), deload: deload || undefined });
     await setMeta('lastStart', { gymId: validGym, dayId });
     nav(`/session/${s.id}`);
   };
@@ -85,6 +87,17 @@ export function HomePage() {
         right={<SyncBadge />}
       />
       <DemoBanner />
+      {deload?.active && (
+        <div className="mb-4 flex items-center gap-3 rounded-card bg-sky-500/10 px-4 py-3 text-sm">
+          <span className="flex-1 text-sky-200">
+            <span className="block font-semibold text-white">Deload-Woche</span>
+            Diese Woche leichter trainieren: weniger Sätze, etwa 10 % weniger Gewicht.
+          </span>
+          <button type="button" className="shrink-0 font-semibold text-white" onClick={() => setDeloadThisWeek(false)}>
+            Normal trainieren
+          </button>
+        </div>
+      )}
       <section className="mb-4 rounded-card bg-slate-900 p-4">
         <div className="mb-3 flex items-baseline justify-between">
           <h2 className="text-lg font-bold">Diese Woche</h2>

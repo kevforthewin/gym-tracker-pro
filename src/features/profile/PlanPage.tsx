@@ -1,12 +1,16 @@
 import { useState } from 'react';
-import { ArrowUp, X } from 'lucide-react';
+import { ArrowUp, Share2, X } from 'lucide-react';
 import { MuscleTile } from '../../components/MuscleIcon';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Card, Modal, PageHeader } from '../../components/ui';
+import { Button, Card, IconButton, Modal, PageHeader } from '../../components/ui';
+import { encodePlan } from '../../domain/planShare';
+import { exportPlan } from '../../local/plans';
 import { alive, all, db, patch, remove, save } from '../../local/db';
 import { SPLIT_LABEL } from '../../domain/dashboard';
 import { slotById } from '../../domain/slots';
+import { PlanVolumeCard } from './PlanVolumeCard';
+import { DeloadCard } from './DeloadCard';
 import { isCardioExercise, type PlanDay, type PlanDayExercise, type Split } from '../../model/types';
 
 export function PlanPage() {
@@ -17,12 +21,25 @@ export function PlanPage() {
   const pdes = useLiveQuery(async () => (await all('planDayExercises')).sort((a, b) => a.order - b.order), []);
   const exercises = useLiveQuery(async () => new Map((await all('exercises')).map((e) => [e.id, e])), []);
   const [adding, setAdding] = useState<PlanDay | null>(null);
+  const [shareMsg, setShareMsg] = useState('');
 
   if (!alive(plan)) return null;
 
   const addDay = async () => {
     const name = prompt('Name des Trainingstags', 'Push');
     if (name) await save('planDays', { planId: id, name, order: days?.length ?? 0 });
+  };
+  const share = async () => {
+    const url = `${location.origin}${location.pathname}#/plan-import?d=${encodePlan(await exportPlan(id))}`;
+    try {
+      if (navigator.share) await navigator.share({ title: `Trainingsplan: ${plan.name}`, url });
+      else {
+        await navigator.clipboard.writeText(url);
+        setShareMsg('Link kopiert – schick ihn an wen du willst.');
+      }
+    } catch {
+      /* Teilen abgebrochen */
+    }
   };
   const deletePlan = async () => {
     if (!confirm(`Plan „${plan.name}“ löschen? Bisherige Trainings bleiben erhalten.`)) return;
@@ -32,7 +49,19 @@ export function PlanPage() {
 
   return (
     <>
-      <PageHeader title={plan.name} back={() => nav('/profile')} right={<Button onClick={addDay}>+ Tag</Button>} />
+      <PageHeader
+        title={plan.name}
+        back={() => nav('/profile')}
+        right={
+          <>
+            <IconButton label="Plan teilen" onClick={share}>
+              <Share2 size={18} />
+            </IconButton>
+            <Button onClick={addDay}>+ Tag</Button>
+          </>
+        }
+      />
+      {shareMsg && <p className="-mt-3 mb-3 text-sm text-emerald-400">{shareMsg}</p>}
       <div className="space-y-4">
         {days?.map((d) => {
           const list = pdes?.filter((p) => p.planDayId === d.id) ?? [];
@@ -78,6 +107,14 @@ export function PlanPage() {
             </Card>
           );
         })}
+      </div>
+      {days && pdes && exercises && (
+        <div className="mt-4">
+          <PlanVolumeCard days={days} pdes={pdes} exercises={exercises} />
+        </div>
+      )}
+      <div className="mt-4">
+        <DeloadCard plan={plan} />
       </div>
       <button type="button" className="mt-8 w-full py-2 text-sm text-red-400" onClick={deletePlan}>
         Plan löschen

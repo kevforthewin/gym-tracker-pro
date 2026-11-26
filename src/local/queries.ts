@@ -66,9 +66,15 @@ export async function searchModels(q: string, exerciseId?: string): Promise<(Equ
 }
 
 /** Alle gewerteten Sätze einer Übung als Historien-Sätze */
-export async function exerciseHistSets(exerciseId: string): Promise<HistSet[]> {
+/** @param skipDeload Deload-Trainings auslassen (für Ziel/Progression) */
+export async function exerciseHistSets(exerciseId: string, skipDeload = false): Promise<HistSet[]> {
   const sets = (await db.sets.where('exerciseId').equals(exerciseId).toArray()).filter(counted);
-  const sessions = new Map((await db.sessions.bulkGet([...new Set(sets.map((s) => s.sessionId))])).filter(alive).map((s) => [s.id, s]));
+  const sessions = new Map(
+    (await db.sessions.bulkGet([...new Set(sets.map((s) => s.sessionId))]))
+      .filter(alive)
+      .filter((s) => !(skipDeload && s.deload))
+      .map((s) => [s.id, s]),
+  );
   return sets
     .filter((s) => sessions.has(s.sessionId))
     .map((s) => ({
@@ -102,7 +108,7 @@ export async function targetFor(args: {
   excludeSessionId?: string;
   startWeightKg?: number;
 }): Promise<TargetInfo> {
-  const [sets, machines] = await Promise.all([exerciseHistSets(args.exercise.id), allHistMachines()]);
+  const [sets, machines] = await Promise.all([exerciseHistSets(args.exercise.id, true), allHistMachines()]);
   const levels = historyLevels(
     { machine: args.machine, exerciseId: args.exercise.id, freeWeight: args.exercise.freeWeight || !args.machine },
     sets,
