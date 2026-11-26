@@ -177,7 +177,7 @@ function ModelRow({ model, exercise, onPick }: { model: EquipmentModel; exercise
   return (
     <li>
       <button type="button" className="flex w-full items-center gap-3 px-3 py-2.5 text-left" onClick={onPick}>
-        <MuscleTile muscle={exercise?.muscleGroup} />
+        <MuscleTile muscle={exercise?.muscleGroup} exerciseId={exercise?.id} />
         <span className="min-w-0 flex-1">
           <span className="block font-medium">{model.name}</span>
           <span className="block text-xs text-slate-500">{exercise?.name}</span>

@@ -93,7 +93,7 @@ function PdeRow({ pde, name, hint, prev, muscle }: { pde: PlanDayExercise; name:
   return (
     <li className="py-2">
       <div className="flex items-center gap-2">
-        <MuscleTile muscle={muscle} />
+        <MuscleTile muscle={muscle} exerciseId={pde.exerciseId} />
         <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setEdit((e) => !e)}>
           {name}
           <span className="block text-xs text-slate-500">

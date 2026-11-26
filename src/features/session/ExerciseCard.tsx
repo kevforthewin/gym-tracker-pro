@@ -93,7 +93,7 @@ export function ExerciseCard({ sessionId, exercise, machine, alternatives, presc
 
       {/* Geräte-Kachel */}
       <button type="button" onClick={onPickMachine} className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-black px-3 py-2.5 text-left active:bg-slate-950">
-        <MuscleTile muscle={exercise.muscleGroup} />
+        <MuscleTile muscle={exercise.muscleGroup} exerciseId={exercise.id} />
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold">
             {machine ? machine.label : exercise.freeWeight ? 'Freihantel' : needsMachine ? 'Gerät wählen' : 'Kein Gerät'}

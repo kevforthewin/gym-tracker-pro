@@ -125,7 +125,7 @@ export function ProgressCards({ onOpen }: { onOpen: (exerciseId: string) => void
         {data?.cards.map((c) => (
           <div key={c.exercise.id} className="rounded-card bg-slate-900 p-4">
             <div className="flex items-start gap-2">
-              <MuscleTile muscle={c.exercise.muscleGroup} />
+              <MuscleTile muscle={c.exercise.muscleGroup} exerciseId={c.exercise.id} />
               <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onOpen(c.exercise.id)}>
                 <h3 className="truncate text-lg font-bold">{c.exercise.name}</h3>
                 <p className="truncate text-xs text-slate-500">{c.subtitle}</p>

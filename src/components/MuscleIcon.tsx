@@ -3,6 +3,7 @@
  * Je nach Muskel wird die Vorder- oder Rückansicht gezeigt.
  */
 import { HeartPulse } from 'lucide-react';
+import { secondaryOf } from '../domain/muscles';
 
 type Region =
   | 'pecs'
@@ -45,6 +46,8 @@ const MUSCLES: Record<string, { view: 'front' | 'back'; regions: Region[] }> = {
 const BASE = '#4a4a4f';
 const BODY = '#2a2a2d';
 const HIGHLIGHT = '#ff7a45';
+/** Nebenmuskeln: Hervorhebung, gedämpft */
+const SECONDARY = '#9c604a';
 
 /** Spiegelt eine linke Form auf die rechte Seite (Mittelachse x = 20) */
 function Pair({ children }: { children: React.ReactNode }) {
@@ -94,8 +97,22 @@ function Back({ on }: { on: (r: Region) => string }) {
   );
 }
 
-/** Muskel-Icon; `muscle` ist die Muskelgruppe der Übung (z. B. „Brust“). */
-export function MuscleIcon({ muscle, size = 36, className = '' }: { muscle?: string; size?: number; className?: string }) {
+/**
+ * Muskel-Icon; `muscle` ist die Hauptmuskelgruppe der Übung (z. B. „Brust“), `secondary` die
+ * mittrainierten Muskeln (gedämpft). Nebenmuskeln erscheinen nur, wenn sie in derselben Ansicht
+ * liegen (vorne/hinten) – sonst würde z. B. „Bizeps“ in der Rückansicht als Trizeps erscheinen.
+ */
+export function MuscleIcon({
+  muscle,
+  secondary = [],
+  size = 36,
+  className = '',
+}: {
+  muscle?: string;
+  secondary?: string[];
+  size?: number;
+  className?: string;
+}) {
   if (muscle === 'Cardio')
     return (
       <span className={`flex items-center justify-center ${className}`} style={{ width: size, height: size }}>
@@ -103,7 +120,13 @@ export function MuscleIcon({ muscle, size = 36, className = '' }: { muscle?: str
       </span>
     );
   const m = (muscle && MUSCLES[muscle]) || { view: 'front' as const, regions: [] as Region[] };
-  const on = (r: Region) => (m.regions.includes(r) ? HIGHLIGHT : BASE);
+  const sec = new Set(
+    secondary
+      .map((x) => MUSCLES[x])
+      .filter((x) => x && x.view === m.view)
+      .flatMap((x) => x.regions),
+  );
+  const on = (r: Region) => (m.regions.includes(r) ? HIGHLIGHT : sec.has(r) ? SECONDARY : BASE);
   return (
     <svg viewBox="0 0 40 64" width={(size * 40) / 64} height={size} className={className} aria-label={muscle ?? 'Übung'} role="img">
       {/* Silhouette */}
@@ -122,11 +145,11 @@ export function MuscleIcon({ muscle, size = 36, className = '' }: { muscle?: str
   );
 }
 
-/** Quadratische Kachel mit Muskel-Icon */
-export function MuscleTile({ muscle, className = '' }: { muscle?: string; className?: string }) {
+/** Quadratische Kachel mit Muskel-Icon einer Übung (Haupt- und Nebenmuskeln) */
+export function MuscleTile({ muscle, exerciseId, className = '' }: { muscle?: string; exerciseId?: string; className?: string }) {
   return (
     <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800 ${className}`}>
-      <MuscleIcon muscle={muscle} size={34} />
+      <MuscleIcon muscle={muscle} secondary={secondaryOf(exerciseId)} size={34} />
     </span>
   );
 }
