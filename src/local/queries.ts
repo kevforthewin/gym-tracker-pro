@@ -52,15 +52,17 @@ export async function gymMachines(gymId: string): Promise<MachineView[]> {
 
 /** Katalogsuche: alle Wörter müssen in „Hersteller Linie Gerät“ vorkommen */
 export async function searchModels(q: string, exerciseId?: string): Promise<(EquipmentModel & { title: string })[]> {
-  const [models, mfs] = await Promise.all([all('equipmentModels'), all('manufacturers')]);
+  const [models, mfs, exercises] = await Promise.all([all('equipmentModels'), all('manufacturers'), all('exercises')]);
   const mfM = new Map(mfs.map((m) => [m.id, m]));
+  const exName = new Map(exercises.map((e) => [e.id, e.name]));
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
   return models
     .filter((m) => !exerciseId || m.exerciseId === exerciseId)
     .map((m) => ({ ...m, title: modelTitle(m, mfM.get(m.manufacturerId)) }))
-    .filter((m) => words.every((w) => m.title.toLowerCase().includes(w)))
-    .sort((a, b) => a.title.localeCompare(b.title, 'de'))
-    .slice(0, 50);
+    .filter((m) => words.every((w) => `${m.title} ${exName.get(m.exerciseId ?? '') ?? ''}`.toLowerCase().includes(w)))
+    // geprüfte Herstellermodelle zuerst
+    .sort((a, b) => Number(!!b.verified) - Number(!!a.verified) || a.title.localeCompare(b.title, 'de'))
+    .slice(0, 60);
 }
 
 /** Alle gewerteten Sätze einer Übung als Historien-Sätze */

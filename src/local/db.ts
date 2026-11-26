@@ -4,7 +4,7 @@
  * und werden vom Sync-Modul zu Supabase übertragen.
  */
 import Dexie, { type EntityTable } from 'dexie';
-import { CATALOG_EXERCISES, CATALOG_MANUFACTURERS, CATALOG_MODELS } from '../catalog/catalog';
+import { CATALOG_EXERCISES, CATALOG_MANUFACTURERS, CATALOG_MODELS, LEGACY_MODEL_ALIAS } from '../catalog/catalog';
 import {
   PRIVATE_TABLES,
   type BodyweightEntry,
@@ -105,19 +105,32 @@ export const uid = () => crypto.randomUUID();
 export const alive = <T extends Row>(r: T | undefined): r is T => !!r && !r.deletedAt;
 
 /** Katalog lokal bereitstellen (überschreibt keine neueren Nutzer-Änderungen). */
+export const CATALOG_VERSION = 2;
+
+/**
+ * Katalog lokal bereitstellen bzw. aktualisieren.
+ * Katalogzeilen (ohne Ersteller) werden überschrieben, von Nutzern angelegte bleiben unberührt.
+ * Ab Version 2: generierte Modelle der geprüften Hersteller werden auf echte Modelle umgestellt.
+ */
 export async function seedCatalog() {
-  const version = 1;
-  if ((await getMeta<number>('catalogVersion')) === version) return;
-  await db.transaction('rw', db.manufacturers, db.equipmentModels, db.exercises, db.meta, async () => {
+  if ((await getMeta<number>('catalogVersion')) === CATALOG_VERSION) return;
+  await db.transaction('rw', [db.manufacturers, db.equipmentModels, db.exercises, db.gymMachines, db.meta], async () => {
     for (const [table, rows] of [
       [db.manufacturers, CATALOG_MANUFACTURERS],
       [db.equipmentModels, CATALOG_MODELS],
       [db.exercises, CATALOG_EXERCISES],
     ] as const) {
-      const existing = new Set((await (table as EntityTable<Row, 'id'>).toCollection().primaryKeys()) as string[]);
-      await (table as EntityTable<Row, 'id'>).bulkAdd((rows as Row[]).filter((r) => !existing.has(r.id)));
+      const t = table as EntityTable<Row & { createdBy?: string }, 'id'>;
+      const existing = new Map((await t.toArray()).map((r) => [r.id, r]));
+      // nur Katalogzeilen schreiben – nie eine Zeile, die ein Nutzer angelegt hat
+      await t.bulkPut((rows as Row[]).filter((r) => !existing.get(r.id)?.createdBy));
     }
-    await setMeta('catalogVersion', version);
+    // Geräte, die auf ein altes, generiertes Modell zeigen, umstellen (lokal, ohne Sync – der Server macht dasselbe per SQL)
+    const old = Object.keys(LEGACY_MODEL_ALIAS);
+    const machines = await db.gymMachines.where('modelId').anyOf(old).toArray();
+    for (const m of machines) await db.gymMachines.update(m.id, { modelId: LEGACY_MODEL_ALIAS[m.modelId!] ?? undefined });
+    await db.equipmentModels.bulkDelete(old);
+    await setMeta('catalogVersion', CATALOG_VERSION);
   });
 }
 

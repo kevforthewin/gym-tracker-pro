@@ -7,7 +7,7 @@ gleichen Modell in verschiedenen Gyms vergleichbar.
 - **Historie in drei Ebenen:** dieses Gerät → gleiches Modell in anderen Gyms → Übung allgemein (nur Orientierung).
   Freihantel automatisch über alle Gyms.
 - **Geteilte Gyms & Geräte:** Was ein Nutzer anlegt, können andere übernehmen. Trainings bleiben privat.
-- **Startkatalog:** ~60 Übungen, 15 Hersteller, ~450 Gerätemodelle (`src/catalog/catalog.ts`), von Nutzern ergänzbar.
+- **Gerätekatalog:** 280 geprüfte Modelle mit Modellnummer und Quelle von Hoist, Matrix, Hammer Strength und Life Fitness (`src/catalog/verifiedModels.ts`); übrige Hersteller noch generiert. Von Nutzern ergänzbar.
 - **Doppelte Progression** mit Ziel fürs nächste Training, Zusammenfassung, Fortschritts-Charts je Gerät.
 - **Offline zuerst:** Alles wird lokal gespeichert (IndexedDB) und bei Netz mit Supabase synchronisiert.
 - **Satz-Tabelle:** jeder Satz mit Ziel vorbefüllt, ein Tipp zum Bestätigen, Bestwerte sofort sichtbar.
@@ -28,7 +28,7 @@ npm run build
 ## Supabase einrichten (Konten + Sync)
 
 1. Auf [supabase.com](https://supabase.com) ein Projekt anlegen (Region: Frankfurt).
-2. Im Dashboard **SQL Editor** → Inhalt von `supabase/migrations/0001_init.sql` einfügen → *Run*.
+2. Im Dashboard **SQL Editor** → Inhalt von `supabase/migrations/0001_init.sql` einfügen → *Run*, danach `0005_model_details.sql`.
    Danach dasselbe mit `0002_seed_catalog.sql` , `0003_feedback.sql` und `0004_cardio_session.sql`.
 3. **Authentication → Sign In / Providers → Email** aktiv lassen. Unter **Authentication → Emails → Magic Link**
    im Text `{{ .Token }}` ergänzen, damit die Mail den 6-stelligen Code enthält (wichtig für die installierte iPhone-App).
@@ -48,6 +48,6 @@ Lokal: `.env.local` mit `VITE_SUPABASE_URL=…` und `VITE_SUPABASE_ANON_KEY=…`
 | `src/domain` | reine, getestete Logik: Progression, Historie-Ebenen, Kennzahlen, Zusammenfassung |
 | `src/local` | Dexie-Datenbank, Schreiben mit Outbox, Abfragen |
 | `src/sync` | Push/Pull mit Last-Write-Wins, Supabase-Client, Login |
-| `src/catalog` | Startkatalog; `scripts/gen-catalog-sql.mjs` erzeugt daraus das Seed-SQL |
+| `src/catalog` | Katalog; `npm run catalog:sql` erzeugt daraus das Seed-SQL |
 | `src/import` | Import aus der bisherigen App |
 | `supabase/migrations` | Schema, Sync-Trigger, Row Level Security, Katalog-Seed |

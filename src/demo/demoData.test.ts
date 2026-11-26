@@ -18,7 +18,7 @@ describe('Beispieldaten', () => {
     expect((await all('sessions')).length).toBe(24);
     // Brustpresse Gym B ist dasselbe Hoist-Modell wie in Gym A
     const ex = (await db.exercises.get('chest-press'))!;
-    const neu = { id: 'x', gymId: 'neu', exerciseId: 'chest-press', modelId: 'hoist--roc-it--chest-press', label: 'BP', weightStepKg: 2.5, updatedAt: 0 };
+    const neu = { id: 'x', gymId: 'neu', exerciseId: 'chest-press', modelId: 'hoist--rs-2301', label: 'BP', weightStepKg: 2.5, updatedAt: 0 };
     await db.gymMachines.put(neu);
     const t = await targetFor({ exercise: ex, machine: neu, prescription: { sets: 3, repMin: 8, repMax: 12 } });
     expect(t.used?.level).toBe('model');

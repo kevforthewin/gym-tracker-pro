@@ -30,15 +30,15 @@ export async function loadDemo(now = Date.now()) {
     createdBy: DEMO_USER,
   });
   const machines: GymMachine[] = [
-    m('demo-a-cp', 'demo-gym-a', 'chest-press', 'Brustpresse', 'hoist--roc-it--chest-press'),
-    m('demo-a-lat', 'demo-gym-a', 'lat-pulldown', 'Latzug', 'matrix--ultra--lat-pulldown'),
-    m('demo-a-row', 'demo-gym-a', 'seated-row', 'Rudern', 'matrix--ultra--seated-row'),
+    m('demo-a-cp', 'demo-gym-a', 'chest-press', 'Brustpresse', 'hoist--rs-2301'),
+    m('demo-a-lat', 'demo-gym-a', 'lat-pulldown', 'Latzug', 'matrix--g7-s33'),
+    m('demo-a-row', 'demo-gym-a', 'seated-row', 'Rudern', 'matrix--g7-s34'),
     m('demo-a-lp', 'demo-gym-a', 'leg-press', 'Beinpresse', 'gym80--pure-kraft--leg-press', 5),
-    m('demo-a-le', 'demo-gym-a', 'leg-extension', 'Beinstrecker', 'matrix--ultra--leg-extension'),
-    m('demo-a-sp', 'demo-gym-a', 'shoulder-press', 'Schulterpresse', 'hoist--roc-it--shoulder-press'),
-    m('demo-b-cp', 'demo-gym-b', 'chest-press', 'Brustpresse (hinten)', 'hoist--roc-it--chest-press'),
-    m('demo-b-lat', 'demo-gym-b', 'lat-pulldown', 'Latzug', 'technogym--selection-700--lat-pulldown'),
-    m('demo-b-lp', 'demo-gym-b', 'leg-press', 'Beinpresse', 'technogym--selection-700--leg-press', 5),
+    m('demo-a-le', 'demo-gym-a', 'leg-extension', 'Beinstrecker', 'matrix--g7-s71'),
+    m('demo-a-sp', 'demo-gym-a', 'shoulder-press', 'Schulterpresse', 'hoist--rs-2501'),
+    m('demo-b-cp', 'demo-gym-b', 'chest-press', 'Brustpresse (hinten)', 'hoist--rs-2301'),
+    m('demo-b-lat', 'demo-gym-b', 'lat-pulldown', 'Latzug', 'hammer-strength--select-lat-pulldown'),
+    m('demo-b-lp', 'demo-gym-b', 'leg-press', 'Beinpresse', 'hammer-strength--select-seated-leg-press', 5),
   ];
   const userGyms: UserGym[] = gyms.map((g) => ({ id: `demo-ug-${g.id}`, gymId: g.id, userId: DEMO_USER, updatedAt: t }));
   const plan: Plan = { id: 'demo-plan', name: 'Beispiel: Push / Pull / Legs', order: 99, userId: DEMO_USER, updatedAt: t };

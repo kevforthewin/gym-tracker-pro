@@ -73,9 +73,20 @@ export function AddMachineModal({
                     <button
                       type="button"
                       className="w-full py-2 text-left text-sm"
-                      onClick={() => setPick({ exerciseId: m.exerciseId!, modelId: m.id, label: m.name, step: m.weightStepKg ?? 2.5 })}
+                      onClick={() =>
+                        setPick({
+                          exerciseId: m.exerciseId!,
+                          modelId: m.id,
+                          label: exercises?.find((e) => e.id === m.exerciseId)?.name ?? m.name,
+                          step: m.weightStepKg ?? 2.5,
+                        })
+                      }
                     >
                       {m.title}
+                      <span className="block text-xs text-slate-500">
+                        {exercises?.find((e) => e.id === m.exerciseId)?.name}
+                        {m.verified ? ' · ✓ Herstellerangabe' : ' · Modell ungeprüft'}
+                      </span>
                     </button>
                   </li>
                 ))}

@@ -35,6 +35,12 @@ export interface EquipmentModel extends Row {
   /** Übung, die dieses Modell typischerweise trainiert */
   exerciseId?: string;
   weightStepKg?: number;
+  /** Modellnummer des Herstellers, z. B. „RS-2301“ */
+  modelNumber?: string;
+  /** Quelle (Produktseite des Herstellers) */
+  sourceUrl?: string;
+  /** aus Herstellerangaben übernommen (nicht generiert) */
+  verified?: boolean;
   createdBy?: string;
 }
 

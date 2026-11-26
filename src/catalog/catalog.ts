@@ -1,9 +1,12 @@
 /**
  * Startkatalog: Übungen, Hersteller und Gerätemodelle.
- * Selbst zusammengestellt aus gängigen, öffentlich bekannten Produktlinien. Nicht vollständig –
+ * Hoist, Matrix, Hammer Strength und Life Fitness: geprüfte Modelle von den Herstellerseiten.
+ * Übrige Hersteller: noch generiert aus typischen Gerätetypen (wird schrittweise ersetzt).
  * Nutzer ergänzen fehlende Modelle in der App. IDs sind stabil (werden in Supabase gleich geseedet).
  */
 import type { EquipmentKind, EquipmentModel, Exercise, ExerciseType, Manufacturer, Split } from '../model/types';
+import { exerciseForProduct, kindForLine } from './mapModels';
+import { VERIFIED_MODELS } from './verifiedModels';
 
 const T0 = 0; // Katalog-Zeilen: updatedAt 0 → jede Nutzer-Änderung gewinnt
 
@@ -13,6 +16,8 @@ const EXERCISES: Ex[] = [
   // Push
   ['chest-press', 'Brustpresse', 'weight_reps', 'Brust', 'push'],
   ['incline-chest-press', 'Schrägbankpresse (Maschine)', 'weight_reps', 'Brust', 'push'],
+  ['decline-chest-press', 'Negativ-Brustpresse (Maschine)', 'weight_reps', 'Brust', 'push'],
+  ['dip-machine', 'Dips (Maschine)', 'weight_reps', 'Trizeps', 'push'],
   ['butterfly', 'Butterfly', 'weight_reps', 'Brust', 'push'],
   ['cable-fly', 'Kabelzug Fliegende', 'weight_reps', 'Brust', 'push'],
   ['bench-press', 'Bankdrücken (Langhantel)', 'weight_reps', 'Brust', 'push', true],
@@ -33,6 +38,7 @@ const EXERCISES: Ex[] = [
   ['seated-row', 'Rudern sitzend (Maschine)', 'weight_reps', 'Rücken', 'pull'],
   ['cable-row', 'Rudern (Kabel)', 'weight_reps', 'Rücken', 'pull'],
   ['t-bar-row', 'T-Bar-Rudern', 'weight_reps', 'Rücken', 'pull'],
+  ['high-row', 'Rudern von oben (High Row)', 'weight_reps', 'Rücken', 'pull'],
   ['db-row', 'Kurzhantelrudern', 'weight_reps', 'Rücken', 'pull', true],
   ['pullup', 'Klimmzüge', 'bodyweight', 'Rücken', 'pull', true],
   ['assisted-pullup', 'Klimmzüge (unterstützt)', 'weight_reps', 'Rücken', 'pull'],
@@ -45,11 +51,14 @@ const EXERCISES: Ex[] = [
   ['hammer-curl', 'Hammercurl', 'weight_reps', 'Bizeps', 'pull', true],
   ['cable-curl', 'Bizepscurl (Kabel)', 'weight_reps', 'Bizeps', 'pull'],
   ['shrug', 'Shrugs', 'weight_reps', 'Nacken', 'pull', true],
+  ['shrug-machine', 'Shrugs (Maschine)', 'weight_reps', 'Nacken', 'pull'],
   ['external-rotation', 'Außenrotation (Kabel)', 'weight_reps', 'Rotatorenmanschette', 'pull'],
   ['ez-curl', 'SZ-Curls', 'weight_reps', 'Bizeps', 'pull', true],
   // Legs
   ['leg-press', 'Beinpresse', 'weight_reps', 'Beine', 'legs'],
   ['hack-squat', 'Hackenschmidt', 'weight_reps', 'Beine', 'legs'],
+  ['pendulum-squat', 'Pendel-Kniebeuge', 'weight_reps', 'Beine', 'legs'],
+  ['belt-squat', 'Gürtel-Kniebeuge (Belt Squat)', 'weight_reps', 'Beine', 'legs'],
   ['squat', 'Kniebeuge (Langhantel)', 'weight_reps', 'Beine', 'legs', true],
   ['smith-squat', 'Kniebeuge (Multipresse)', 'weight_reps', 'Beine', 'legs'],
   ['leg-extension', 'Beinstrecker', 'weight_reps', 'Quadrizeps', 'legs'],
@@ -62,6 +71,7 @@ const EXERCISES: Ex[] = [
   ['abductor', 'Abduktoren', 'weight_reps', 'Abduktoren', 'legs'],
   ['adductor', 'Adduktoren', 'weight_reps', 'Adduktoren', 'legs'],
   ['calf-raise', 'Wadenheben', 'weight_reps', 'Waden', 'legs'],
+  ['seated-calf-raise', 'Wadenheben sitzend', 'weight_reps', 'Waden', 'legs'],
   ['lunges', 'Ausfallschritte', 'weight_reps', 'Beine', 'legs', true],
   // Rumpf
   ['ab-crunch', 'Bauchmaschine', 'weight_reps', 'Bauch', 'other'],
@@ -163,29 +173,16 @@ const PLATE_LOADED = [
   'hip-thrust',
   'calf-raise',
 ];
-const CARDIO = ['treadmill', 'bike', 'cross-trainer', 'stair-climber'];
 
+/** Noch nicht geprüfte Linien (generiert aus typischen Gerätetypen) – werden nach und nach durch Herstellerdaten ersetzt. */
 const LINES: Line[] = [
   { mf: 'technogym', line: 'Selection 700', kind: 'selectorized', step: 2.5, exercises: SELECTORIZED_FULL },
   { mf: 'technogym', line: 'Selection 900', kind: 'selectorized', step: 2.5, exercises: SELECTORIZED_CORE },
   { mf: 'technogym', line: 'Pure Strength', kind: 'plate_loaded', step: 2.5, exercises: PLATE_LOADED },
-  { mf: 'technogym', line: 'Cardio', kind: 'cardio', step: 1, exercises: CARDIO },
-  { mf: 'matrix', line: 'Ultra', kind: 'selectorized', step: 2.5, exercises: SELECTORIZED_FULL },
-  { mf: 'matrix', line: 'Versa', kind: 'selectorized', step: 2.5, exercises: SELECTORIZED_CORE },
-  { mf: 'matrix', line: 'Aura', kind: 'selectorized', step: 2.5, exercises: SELECTORIZED_CORE },
-  { mf: 'matrix', line: 'Magnum (Plate Loaded)', kind: 'plate_loaded', step: 2.5, exercises: PLATE_LOADED },
-  { mf: 'matrix', line: 'Cardio', kind: 'cardio', step: 1, exercises: CARDIO },
-  { mf: 'life-fitness', line: 'Insignia', kind: 'selectorized', step: 2.5, exercises: SELECTORIZED_FULL },
-  { mf: 'life-fitness', line: 'Optima', kind: 'selectorized', step: 2.5, exercises: SELECTORIZED_CORE },
-  { mf: 'life-fitness', line: 'Cardio', kind: 'cardio', step: 1, exercises: CARDIO },
-  { mf: 'hammer-strength', line: 'Plate-Loaded', kind: 'plate_loaded', step: 2.5, exercises: PLATE_LOADED },
-  { mf: 'hammer-strength', line: 'Select', kind: 'selectorized', step: 2.5, exercises: SELECTORIZED_CORE },
   { mf: 'precor', line: 'Discovery', kind: 'selectorized', step: 2.5, exercises: SELECTORIZED_FULL },
   { mf: 'precor', line: 'Resolute', kind: 'selectorized', step: 2.5, exercises: SELECTORIZED_CORE },
   { mf: 'gym80', line: 'Sygnum', kind: 'selectorized', step: 2.5, exercises: SELECTORIZED_FULL },
   { mf: 'gym80', line: 'Pure Kraft', kind: 'plate_loaded', step: 2.5, exercises: PLATE_LOADED },
-  { mf: 'hoist', line: 'ROC-IT', kind: 'selectorized', step: 2.5, exercises: SELECTORIZED_FULL },
-  { mf: 'hoist', line: 'HD Dual', kind: 'selectorized', step: 2.5, exercises: SELECTORIZED_CORE },
   { mf: 'cybex', line: 'Eagle NX', kind: 'selectorized', step: 2.5, exercises: SELECTORIZED_FULL },
   { mf: 'cybex', line: 'Prestige', kind: 'selectorized', step: 2.5, exercises: SELECTORIZED_CORE },
   { mf: 'egym', line: 'Smart Strength', kind: 'selectorized', step: 1, exercises: SELECTORIZED_CORE },
@@ -195,15 +192,15 @@ const LINES: Line[] = [
   { mf: 'nautilus', line: 'Inspiration', kind: 'selectorized', step: 2.5, exercises: SELECTORIZED_CORE },
   { mf: 'nautilus', line: 'Impact', kind: 'selectorized', step: 2.5, exercises: SELECTORIZED_CORE },
   { mf: 'milon', line: 'Kraftzirkel', kind: 'selectorized', step: 1, exercises: SELECTORIZED_CORE },
-  { mf: 'star-trac', line: 'Cardio', kind: 'cardio', step: 1, exercises: CARDIO },
-  { mf: 'concept2', line: 'RowErg / BikeErg', kind: 'cardio', step: 1, exercises: ['rower', 'bike'] },
 ];
 
 const exName = new Map(EXERCISES.map(([id, name]) => [id, name]));
 
-export const CATALOG_MODELS: EquipmentModel[] = LINES.flatMap((l) =>
+const slug = (x: string) => x.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+const GENERIC_MODELS: EquipmentModel[] = LINES.flatMap((l) =>
   l.exercises.map((ex) => ({
-    id: `${l.mf}--${l.line.toLowerCase().replace(/[^a-z0-9]+/g, '-')}--${ex}`,
+    id: `${l.mf}--${slug(l.line)}--${ex}`,
     manufacturerId: l.mf,
     line: l.line,
     name: exName.get(ex) ?? ex,
@@ -214,7 +211,58 @@ export const CATALOG_MODELS: EquipmentModel[] = LINES.flatMap((l) =>
   })),
 );
 
-/** Anzeigename eines Modells: „Hoist ROC-IT · Brustpresse“ */
-export function modelTitle(m: Pick<EquipmentModel, 'line' | 'name'>, mf?: Pick<Manufacturer, 'name'>): string {
-  return [mf?.name, m.line].filter(Boolean).join(' ') + ' · ' + m.name;
+const seen = new Set<string>();
+/** Geprüfte Modelle von den Herstellerseiten (siehe verifiedModels.ts) */
+export const VERIFIED_CATALOG_MODELS: EquipmentModel[] = VERIFIED_MODELS.flatMap(([mf, line, name, model, src]) => {
+  const exerciseId = exerciseForProduct(name);
+  const id = `${mf}--${slug(model || `${line}-${name}`)}`;
+  if (!exerciseId || seen.has(id)) return [];
+  seen.add(id);
+  return [
+    {
+      id,
+      manufacturerId: mf,
+      line,
+      name,
+      modelNumber: model || undefined,
+      sourceUrl: src,
+      verified: true,
+      kind: kindForLine(line),
+      exerciseId,
+      weightStepKg: 2.5,
+      updatedAt: T0,
+    },
+  ];
+});
+
+export const CATALOG_MODELS: EquipmentModel[] = [...VERIFIED_CATALOG_MODELS, ...GENERIC_MODELS];
+
+/**
+ * Frühere, generierte Modell-IDs (Katalog v1) der inzwischen geprüften Hersteller → neues Modell
+ * (gleicher Hersteller, passende Linie, gleiche Übung) oder null, wenn es keine Entsprechung gibt.
+ */
+const OLD_LINES: [mf: string, oldLine: string, newLine: RegExp, exercises: string[]][] = [
+  ['matrix', 'Ultra', /^Ultra$/, SELECTORIZED_FULL],
+  ['matrix', 'Versa', /^Versa$/, SELECTORIZED_CORE],
+  ['matrix', 'Aura', /^Aura$/, SELECTORIZED_CORE],
+  ['matrix', 'Magnum (Plate Loaded)', /^Magnum/, PLATE_LOADED],
+  ['life-fitness', 'Insignia', /^Insignia/, SELECTORIZED_FULL],
+  ['life-fitness', 'Optima', /^Axiom/, SELECTORIZED_CORE],
+  ['hammer-strength', 'Plate-Loaded', /^Plate-Loaded$/, PLATE_LOADED],
+  ['hammer-strength', 'Select', /^Select$/, SELECTORIZED_CORE],
+  ['hoist', 'ROC-IT', /^ROC-IT Selectorized$/, SELECTORIZED_FULL],
+  ['hoist', 'HD Dual', /^HD Dual$/, SELECTORIZED_CORE],
+];
+export const LEGACY_MODEL_ALIAS: Record<string, string | null> = Object.fromEntries(
+  OLD_LINES.flatMap(([mf, oldLine, newLine, exercises]) =>
+    exercises.map((ex) => [
+      `${mf}--${slug(oldLine)}--${ex}`,
+      VERIFIED_CATALOG_MODELS.find((m) => m.manufacturerId === mf && newLine.test(m.line ?? '') && m.exerciseId === ex)?.id ?? null,
+    ]),
+  ),
+);
+
+/** Anzeigename eines Modells: „Hoist ROC-IT Selectorized · Chest Press (RS-2301)“ */
+export function modelTitle(m: Pick<EquipmentModel, 'line' | 'name' | 'modelNumber'>, mf?: Pick<Manufacturer, 'name'>): string {
+  return [mf?.name, m.line].filter(Boolean).join(' ') + ' · ' + m.name + (m.modelNumber ? ` (${m.modelNumber})` : '');
 }
