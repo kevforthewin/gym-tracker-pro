@@ -6,6 +6,8 @@ import { all, getMeta, save, setMeta } from '../../local/db';
 import { myGyms } from '../../local/queries';
 import { fmtDate } from '../../domain/units';
 import { weekStart } from '../../domain/insights';
+import { isoOf } from '../../domain/dashboard';
+import { CardioSheet } from '../cardio/CardioSheet';
 import { DemoBanner, Tour, useFirstRunTour } from '../../demo/Tour';
 import { SyncBadge } from '../profile/SyncBadge';
 
@@ -21,6 +23,8 @@ export function HomePage() {
       .map((d) => ({ ...d, planName: pm.get(d.planId)!.name }));
   }, []);
   const sessions = useLiveQuery(async () => (await all('sessions')).sort((a, b) => b.startedAt - a.startedAt), []);
+  const cardio = useLiveQuery(() => all('cardio'), []);
+  const [cardioOpen, setCardioOpen] = useState(false);
   const names = useLiveQuery(async () => {
     const [g, d] = await Promise.all([all('gyms'), all('planDays')]);
     return { gym: new Map(g.map((x) => [x.id, x.name])), day: new Map(d.map((x) => [x.id, x.name])) };
@@ -41,7 +45,6 @@ export function HomePage() {
 
   const active = sessions?.find((s) => !s.finishedAt && Date.now() - s.startedAt < 6 * 3600_000);
   const validGym = gyms?.some((g) => g.id === gymId) ? gymId : (gyms?.[0]?.id ?? '');
-  const last7 = sessions?.filter((s) => s.startedAt > Date.now() - 7 * 86400_000).length ?? 0;
 
   const start = async () => {
     const s = await save('sessions', { gymId: validGym, planDayId: dayId || undefined, startedAt: Date.now() });
@@ -57,9 +60,18 @@ export function HomePage() {
     d.setDate(d.getDate() + i);
     const from = d.getTime();
     const to = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime();
-    return { d, trained: !!sessions?.some((x) => x.startedAt >= from && x.startedAt < to), today: d.toDateString() === new Date().toDateString() };
+    const iso = isoOf(from);
+    return {
+      d,
+      trained: !!sessions?.some((x) => x.startedAt >= from && x.startedAt < to),
+      cardio: !!cardio?.some((c) => c.date === iso),
+      today: d.toDateString() === new Date().toDateString(),
+    };
   });
-  const thisWeek = week.filter((x) => x.trained).length;
+  const weekStartIso = isoOf(ws);
+  const thisWeek = sessions?.filter((x) => x.startedAt >= ws).length ?? 0;
+  const cardioWeek = cardio?.filter((c) => c.date >= weekStartIso) ?? [];
+  const cardioMin = Math.round(cardioWeek.reduce((a, c) => a + c.durationMin, 0));
 
   return (
     <>
@@ -73,20 +85,30 @@ export function HomePage() {
         <div className="mb-3 flex items-baseline justify-between">
           <h2 className="text-lg font-bold">Diese Woche</h2>
           <span className="text-sm text-slate-500">
-            {thisWeek} {thisWeek === 1 ? 'Training' : 'Trainings'} · {last7} in 7 Tagen
+            {thisWeek} {thisWeek === 1 ? 'Training' : 'Trainings'}
+            {cardioWeek.length > 0 && ` · ${cardioMin} min Cardio`}
           </span>
         </div>
         <div className="grid grid-cols-7 gap-1 text-center">
-          {week.map(({ d, trained, today }) => (
+          {week.map(({ d, trained, cardio: c, today }) => (
             <div key={d.toISOString()} className={`rounded-2xl py-1.5 ${today ? 'bg-white text-black' : ''}`}>
               <p className={`text-[10px] font-semibold uppercase ${today ? '' : 'text-slate-500'}`}>{d.toLocaleDateString('de-DE', { weekday: 'short' }).slice(0, 2)}</p>
               <p className="text-base font-bold tabular-nums">{d.getDate()}</p>
               <span
-                className={`mx-auto mt-1 flex h-7 w-7 items-center justify-center rounded-full text-xs ${
-                  trained ? (today ? 'bg-black text-white' : 'bg-white text-black') : today ? 'border-2 border-black/20' : 'border-2 border-slate-800'
+                className={`relative mx-auto mt-1 flex h-7 w-7 items-center justify-center rounded-full text-xs ${
+                  trained
+                    ? today
+                      ? 'bg-black text-white'
+                      : 'bg-white text-black'
+                    : c
+                      ? 'bg-best text-black'
+                      : today
+                        ? 'border-2 border-black/20'
+                        : 'border-2 border-slate-800'
                 }`}
               >
-                {trained ? '🏋' : ''}
+                {trained ? '🏋' : c ? '🏃' : ''}
+                {trained && c && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border border-black bg-best" />}
               </span>
             </div>
           ))}
@@ -129,7 +151,10 @@ export function HomePage() {
             </select>
           </label>
           <Button className="w-full" disabled={!validGym} onClick={start}>
-            Training starten
+            Krafttraining starten
+          </Button>
+          <Button variant="secondary" className="w-full" onClick={() => setCardioOpen(true)}>
+            🏃 Cardio eintragen
           </Button>
           {!days?.length && (
             <p className="text-xs text-slate-500">
@@ -160,6 +185,7 @@ export function HomePage() {
           </Card>
         </section>
       )}
+      <CardioSheet open={cardioOpen} onClose={() => setCardioOpen(false)} />
     </>
   );
 }

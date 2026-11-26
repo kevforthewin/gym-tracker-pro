@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ProgressCards } from './ProgressCards';
+import { CardioCard } from '../cardio/CardioCard';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Card, PageHeader } from '../../components/ui';
@@ -31,6 +32,7 @@ export default function ProgressPage() {
     <>
       <PageHeader title="Fortschritt" />
       <ConsistencyStrip />
+      <CardioCard />
       <ProgressCards onOpen={(id) => setParams({ ex: id })} />
     </>
   );

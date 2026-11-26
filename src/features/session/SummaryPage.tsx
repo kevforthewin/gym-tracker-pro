@@ -7,6 +7,7 @@ import { bestLevel, historyLevels } from '../../domain/history';
 import { summarizeSession, type ExerciseSummary } from '../../domain/summary';
 import { fmtDate, fmtNumber } from '../../domain/units';
 import type { SetEntry } from '../../model/types';
+import { CardioRow } from '../cardio/CardioSheet';
 
 const toWork = ({ weightKg, reps, durationSec, distanceM }: SetEntry) => ({ weightKg, reps, durationSec, distanceM });
 
@@ -48,7 +49,8 @@ export function SummaryPage() {
         } as const;
       }),
     );
-    return { session, gymName: gym?.name ?? '', dayName: day?.name ?? 'Freies Training', summary: summarizeSession(items) };
+    const cardio = (await db.cardio.toArray()).filter((c) => c.sessionId === id && !c.deletedAt);
+    return { session, gymName: gym?.name ?? '', dayName: day?.name ?? 'Freies Training', summary: summarizeSession(items), cardio };
   }, [id]);
 
   if (data === undefined) return null;
@@ -72,6 +74,14 @@ export function SummaryPage() {
           <Tile label="Sätze" value={String(s.workSets)} />
           <Tile label="Volumen" value={s.volumeKg >= 10000 ? `${fmtNumber(s.volumeKg / 1000, 1)} t` : `${fmtNumber(s.volumeKg, 0)} kg`} />
         </dl>
+        {data.cardio.length > 0 && (
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold">Cardio</h2>
+            {data.cardio.map((c) => (
+              <CardioRow key={c.id} entry={c} />
+            ))}
+          </section>
+        )}
         <Group title="🏆 Neue Bestwerte" items={s.prs} accent="text-amber-300" />
         <Group title="▲ Gesteigert" items={s.up} accent="text-emerald-400" />
         <Group title="▶ Wie letztes Mal" items={s.same} accent="text-slate-500" />

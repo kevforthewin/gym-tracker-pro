@@ -148,13 +148,39 @@ export interface BodyweightEntry extends Owned {
 }
 
 export interface CardioEntry extends Owned {
+  /** ISO yyyy-mm-dd */
   date: string;
+  /** Schlüssel aus CARDIO_KINDS (oder freier Text aus Importen) */
   kind: string;
   durationMin: number;
   distanceKm?: number;
   kcal?: number;
   gymId?: string;
+  /** gehört zu diesem Krafttraining (z. B. Aufwärmen auf dem Laufband) */
+  sessionId?: string;
+  createdAt?: number;
 }
+
+/** Cardio-Arten – bewusst eine kurze, feste Liste */
+export const CARDIO_KINDS = [
+  { id: 'treadmill', label: 'Laufband', icon: '🏃', distance: true },
+  { id: 'run', label: 'Laufen draußen', icon: '👟', distance: true },
+  { id: 'bike', label: 'Ergometer', icon: '🚴', distance: true },
+  { id: 'cycling', label: 'Radfahren', icon: '🚲', distance: true },
+  { id: 'cross-trainer', label: 'Crosstrainer', icon: '⛷️', distance: false },
+  { id: 'rower', label: 'Rudergerät', icon: '🚣', distance: true },
+  { id: 'stairs', label: 'Stepper', icon: '🪜', distance: false },
+  { id: 'swim', label: 'Schwimmen', icon: '🏊', distance: true },
+  { id: 'walk', label: 'Gehen', icon: '🚶', distance: true },
+  { id: 'other', label: 'Sonstiges', icon: '❤️', distance: false },
+] as const;
+
+export function cardioKind(kind: string) {
+  return CARDIO_KINDS.find((k) => k.id === kind) ?? { id: kind, label: kind, icon: '❤️', distance: true };
+}
+
+/** Cardio-Übungen gehören nicht in Kraft-Auswahllisten (dafür gibt es Cardio-Einträge) */
+export const isCardioExercise = (e: { muscleGroup?: string }) => e.muscleGroup === 'Cardio';
 
 /** Tabellen-Namen (lokal = remote, remote in snake_case) */
 export const SHARED_TABLES = ['manufacturers', 'equipmentModels', 'exercises', 'gyms', 'gymMachines'] as const;

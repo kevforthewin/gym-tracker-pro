@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Card, Modal, PageHeader } from '../../components/ui';
 import { alive, all, db, patch, remove, save } from '../../local/db';
 import { SPLIT_LABEL } from '../../domain/dashboard';
-import type { PlanDay, PlanDayExercise, Split } from '../../model/types';
+import { isCardioExercise, type PlanDay, type PlanDayExercise, type Split } from '../../model/types';
 
 export function PlanPage() {
   const { id = '' } = useParams();
@@ -125,7 +125,7 @@ function AddPdeModal({ day, count, onClose }: { day: PlanDay; count: number; onC
   const [q, setQ] = useState('');
   const exercises = useLiveQuery(() => all('exercises'), []);
   const t = q.trim().toLowerCase();
-  const list = (exercises ?? []).filter((e) => !t || e.name.toLowerCase().includes(t) || e.muscleGroup?.toLowerCase().includes(t));
+  const list = (exercises ?? []).filter((e) => !isCardioExercise(e) && (!t || e.name.toLowerCase().includes(t) || e.muscleGroup?.toLowerCase().includes(t)));
   const add = async (exerciseId: string, endurance: boolean) => {
     await save('planDayExercises', { planDayId: day.id, exerciseId, order: count, sets: endurance ? 1 : 3, repMin: 8, repMax: 12 });
     onClose();

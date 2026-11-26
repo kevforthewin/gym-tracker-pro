@@ -5,7 +5,10 @@ import { EmptyState, IconButton, PageHeader } from '../../components/ui';
 import { sessionStats, type SessionStat } from '../../local/sessionStats';
 import { SPLIT_LABEL } from '../../domain/dashboard';
 import { fmtNumber } from '../../domain/units';
-import type { Split } from '../../model/types';
+import { cardioKind, type CardioEntry, type Split } from '../../model/types';
+import { all } from '../../local/db';
+import { isoOf } from '../../domain/dashboard';
+import { CardioRow, CardioSheet } from '../cardio/CardioSheet';
 
 const SPLIT_DOT: Record<Split, string> = { push: '#3987e5', pull: '#d95926', legs: '#199e70', other: '#8e8e93' };
 const MONTH = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' });
@@ -18,6 +21,8 @@ function dayLabel(ts: number) {
 
 export function HistoryPage() {
   const stats = useLiveQuery(sessionStats, []);
+  const cardio = useLiveQuery(() => all('cardio'), []);
+  const [editCardio, setEditCardio] = useState<CardioEntry | null>(null);
   const now = new Date();
   const [month, setMonth] = useState({ y: now.getFullYear(), m: now.getMonth() });
   const from = new Date(month.y, month.m, 1).getTime();
@@ -25,15 +30,30 @@ export function HistoryPage() {
   const inMonth = (stats ?? []).filter((s) => s.startedAt >= from && s.startedAt < to);
   const daysInMonth = new Date(month.y, month.m + 1, 0).getDate();
   const trainedDays = new Set(inMonth.map((s) => new Date(s.startedAt).getDate()));
+  const fromIso = isoOf(from);
+  const toIso = isoOf(to);
+  const cardioMonth = (cardio ?? []).filter((c) => c.date >= fromIso && c.date < toIso);
+  const cardioDays = new Set(cardioMonth.map((c) => Number(c.date.slice(8, 10))));
+  const cardioBySession = new Map<string, CardioEntry[]>();
+  for (const c of cardioMonth) if (c.sessionId) cardioBySession.set(c.sessionId, [...(cardioBySession.get(c.sessionId) ?? []), c]);
+  const sessionIds = new Set(inMonth.map((s) => s.id));
+  // Cardio ohne (sichtbares) Krafttraining erscheint als eigener Eintrag
+  const standalone = cardioMonth.filter((c) => !c.sessionId || !sessionIds.has(c.sessionId));
   const today = now.getFullYear() === month.y && now.getMonth() === month.m ? now.getDate() : 0;
   const shift = (d: number) => setMonth(({ y, m }) => ({ y: m + d < 0 ? y - 1 : m + d > 11 ? y + 1 : y, m: (m + d + 12) % 12 }));
   const isCurrent = month.y === now.getFullYear() && month.m === now.getMonth();
 
-  const byDay = new Map<string, SessionStat[]>();
-  for (const s of inMonth) {
-    const k = new Date(s.startedAt).toDateString();
-    byDay.set(k, [...(byDay.get(k) ?? []), s]);
-  }
+  type Item = { ts: number; session?: SessionStat; cardio?: CardioEntry };
+  const items: Item[] = [
+    ...inMonth.map((s) => ({ ts: s.startedAt, session: s })),
+    ...standalone.map((c) => ({ ts: c.createdAt ?? new Date(`${c.date}T12:00:00`).getTime(), cardio: c })),
+  ];
+  // nach Kalendertag des Eintrags gruppieren (Cardio: Datum des Eintrags)
+  const dayOf = (it: Item) => (it.cardio ? new Date(`${it.cardio.date}T12:00:00`).toDateString() : new Date(it.ts).toDateString());
+  items.sort((a, b) => new Date(dayOf(b)).getTime() - new Date(dayOf(a)).getTime() || b.ts - a.ts);
+  const byDay = new Map<string, Item[]>();
+  for (const it of items) byDay.set(dayOf(it), [...(byDay.get(dayOf(it)) ?? []), it]);
+  const cardioMin = Math.round(cardioMonth.reduce((a, c) => a + c.durationMin, 0));
 
   return (
     <>
@@ -64,7 +84,9 @@ export function HistoryPage() {
               <span
                 key={d}
                 title={`${d}.`}
-                className={`h-7 flex-1 rounded-[3px] ${trainedDays.has(d) ? 'bg-slate-300' : d === today ? 'border border-dashed border-slate-500' : 'bg-slate-800'}`}
+                className={`h-7 flex-1 rounded-[3px] ${
+                  trainedDays.has(d) ? 'bg-slate-300' : cardioDays.has(d) ? 'bg-best/70' : d === today ? 'border border-dashed border-slate-500' : 'bg-slate-800'
+                }`}
               />
             ))}
           </div>
@@ -73,10 +95,16 @@ export function HistoryPage() {
               <span key={d}>{d}</span>
             ))}
           </div>
+          {cardioMonth.length > 0 && (
+            <p className="mt-2 text-xs text-slate-400">
+              <span className="mr-1 inline-block h-2 w-2 rounded-sm bg-best/70" />
+              Cardio: {cardioMonth.length}× · {cardioMin} min
+            </p>
+          )}
         </div>
       </section>
 
-      {stats && inMonth.length === 0 && (
+      {stats && items.length === 0 && (
         <div className="mt-5">
           <EmptyState title="Keine Trainings in diesem Monat." />
         </div>
@@ -84,9 +112,12 @@ export function HistoryPage() {
 
       {[...byDay].map(([k, list]) => (
         <section key={k}>
-          <h3 className="mb-2 mt-6 text-base font-semibold text-slate-300">{dayLabel(list[0].startedAt)}</h3>
+          <h3 className="mb-2 mt-6 text-base font-semibold text-slate-300">{dayLabel(new Date(k).getTime())}</h3>
           <div className="space-y-2">
-            {list.map((s) => (
+            {list.map(({ session: s, cardio: c }) =>
+              c ? (
+                <CardioRow key={c.id} entry={c} onClick={() => setEditCardio(c)} />
+              ) : s ? (
               <Link key={s.id} to={`/session/${s.id}${s.finished ? '/summary' : ''}`} className="block rounded-card bg-slate-900 p-4 active:bg-slate-800">
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -109,12 +140,19 @@ export function HistoryPage() {
                   ))}
                   {s.prs > 0 && <span className="chip border border-best/60 text-best">✦ {s.prs}</span>}
                   {!s.finished && <span className="chip bg-emerald-500/15 text-emerald-300">läuft</span>}
+                  {cardioBySession.get(s.id)?.map((x) => (
+                    <span key={x.id} className="chip bg-best/15 text-best">
+                      {cardioKind(x.kind).icon} {Math.round(x.durationMin)} min
+                    </span>
+                  ))}
                 </div>
               </Link>
-            ))}
+              ) : null,
+            )}
           </div>
         </section>
       ))}
+      <CardioSheet open={!!editCardio} onClose={() => setEditCardio(null)} entry={editCardio ?? undefined} />
     </>
   );
 }

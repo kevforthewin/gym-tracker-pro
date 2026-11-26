@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Button, Field, Modal } from '../../components/ui';
 import { all, save } from '../../local/db';
 import { searchModels } from '../../local/queries';
-import type { GymMachine } from '../../model/types';
+import { isCardioExercise, type GymMachine } from '../../model/types';
 
 /** Gerät zu einem Gym hinzufügen: Modell aus dem Katalog suchen oder nur die Übung wählen. */
 export function AddMachineModal({
@@ -23,7 +23,10 @@ export function AddMachineModal({
   const [q, setQ] = useState('');
   const [pick, setPick] = useState<{ exerciseId: string; modelId?: string; label: string; step: number } | null>(null);
   const exercises = useLiveQuery(() => all('exercises'), []);
-  const models = useLiveQuery(() => (q.trim().length >= 2 || presetExercise ? searchModels(q, presetExercise) : Promise.resolve([])), [q, presetExercise]);
+  const models = useLiveQuery(
+    async () => (q.trim().length >= 2 || presetExercise ? (await searchModels(q, presetExercise)).filter((m) => m.kind !== 'cardio') : []),
+    [q, presetExercise],
+  );
 
   useEffect(() => {
     if (!open) {
@@ -33,6 +36,7 @@ export function AddMachineModal({
   }, [open]);
 
   const exMatches = (exercises ?? [])
+    .filter((e) => !isCardioExercise(e))
     .filter((e) => (presetExercise ? e.id === presetExercise : q.trim() && e.name.toLowerCase().includes(q.trim().toLowerCase())))
     .slice(0, 8);
 

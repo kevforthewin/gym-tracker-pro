@@ -4,7 +4,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button, EmptyState, Modal, PageHeader } from '../../components/ui';
 import { alive, all, db, patch, remove } from '../../local/db';
 import { lastMachineFor, prescriptionOf } from '../../local/queries';
-import type { Exercise, GymMachine, PlanDayExercise, SetEntry } from '../../model/types';
+import { isCardioExercise, type CardioEntry, type Exercise, type GymMachine, type PlanDayExercise, type SetEntry } from '../../model/types';
+import { CardioRow, CardioSheet } from '../cardio/CardioSheet';
 import { AddMachineModal } from '../gyms/MachineForm';
 import { ExerciseCard, PickMachineModal } from './ExerciseCard';
 
@@ -22,13 +23,14 @@ export function ActiveSessionPage() {
   const data = useLiveQuery(async () => {
     const session = await db.sessions.get(id);
     if (!alive(session)) return null;
-    const [gym, day, pdes, sets, machines, exercises] = await Promise.all([
+    const [gym, day, pdes, sets, machines, exercises, cardio] = await Promise.all([
       db.gyms.get(session.gymId),
       session.planDayId ? db.planDays.get(session.planDayId) : undefined,
       session.planDayId ? db.planDayExercises.where('planDayId').equals(session.planDayId).toArray() : [],
       db.sets.where('sessionId').equals(id).toArray(),
       db.gymMachines.where('gymId').equals(session.gymId).toArray(),
       all('exercises'),
+      all('cardio'),
     ]);
     return {
       session,
@@ -38,12 +40,14 @@ export function ActiveSessionPage() {
       sets: sets.filter(alive).sort((a, b) => a.createdAt - b.createdAt),
       machines: machines.filter(alive),
       exercises: new Map(exercises.map((e) => [e.id, e])),
+      cardio: cardio.filter((c) => c.sessionId === id).sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0)),
     };
   }, [id]);
 
   const [picking, setPicking] = useState<Unit | null>(null);
   const [addingMachine, setAddingMachine] = useState<{ unit: Unit } | null>(null);
   const [addingExercise, setAddingExercise] = useState(false);
+  const [cardioSheet, setCardioSheet] = useState<{ entry?: CardioEntry } | null>(null);
 
   const units: Unit[] = useMemo(() => {
     if (!data) return [];
@@ -129,6 +133,7 @@ export function ActiveSessionPage() {
   const discard = async () => {
     if (!confirm('Training verwerfen? Alle Sätze dieses Trainings werden gelöscht.')) return;
     for (const s of sets) await remove('sets', s.id);
+    for (const c of data.cardio) await remove('cardio', c.id);
     await remove('sessions', session.id);
     nav('/', { replace: true });
   };
@@ -174,9 +179,29 @@ export function ActiveSessionPage() {
         ))}
       </div>
 
-      <Button variant="secondary" className="mt-4 w-full" onClick={() => setAddingExercise(true)}>
-        + Übung hinzufügen
-      </Button>
+      {data.cardio.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {data.cardio.map((c) => (
+            <CardioRow key={c.id} entry={c} onClick={() => setCardioSheet({ entry: c })} />
+          ))}
+        </div>
+      )}
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <Button variant="secondary" onClick={() => setAddingExercise(true)}>
+          + Übung
+        </Button>
+        <Button variant="secondary" onClick={() => setCardioSheet({})}>
+          + Cardio
+        </Button>
+      </div>
+      <CardioSheet
+        open={!!cardioSheet}
+        onClose={() => setCardioSheet(null)}
+        entry={cardioSheet?.entry}
+        sessionId={session.id}
+        gymId={session.gymId}
+      />
       <button type="button" className="mt-6 w-full py-2 text-sm text-slate-500" onClick={discard}>
         Training verwerfen
       </button>
@@ -259,6 +284,7 @@ function AddExerciseModal({
   const [q, setQ] = useState('');
   const t = q.trim().toLowerCase();
   const ms = machines
+    .filter((m) => !isCardioExercise(exercises.get(m.exerciseId) ?? {}))
     .filter((m) => !t || m.label.toLowerCase().includes(t) || exercises.get(m.exerciseId)?.name.toLowerCase().includes(t))
     .sort((a, b) => a.label.localeCompare(b.label, 'de'));
   const free = [...exercises.values()].filter((e) => e.freeWeight && (!t || e.name.toLowerCase().includes(t)));

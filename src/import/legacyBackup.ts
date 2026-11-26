@@ -128,6 +128,23 @@ const RULES: [string[], string][] = [
   [['dips'], 'dips'],
 ];
 
+/** Freitext-Cardio der alten App („Laufband“, „Zone 2 Rad“ …) auf feste Arten abbilden */
+export function cardioKindFromText(kind: string): string {
+  const k = kind.toLowerCase();
+  const rules: [RegExp, string][] = [
+    [/laufband|treadmill/, 'treadmill'],
+    [/ergo|spinning|indoor.?cycl|bike/, 'bike'],
+    [/rad|cycling|fahrrad/, 'cycling'],
+    [/cross/, 'cross-trainer'],
+    [/ruder|row/, 'rower'],
+    [/stepper|treppe|stair/, 'stairs'],
+    [/schwimm|swim/, 'swim'],
+    [/geh|walk|spazier|wander/, 'walk'],
+    [/lauf|run|jogg/, 'run'],
+  ];
+  return rules.find(([r]) => r.test(k))?.[1] ?? kind;
+}
+
 export function matchCatalog(name: string): string | undefined {
   const n = name.toLowerCase();
   return RULES.find(([words]) => words.every((w) => n.includes(w)))?.[1];
@@ -243,7 +260,15 @@ export function planImport(b: LegacyBackup, catalog: Exercise[]): ImportPlan {
       })),
       sets: (t.sets ?? []).map(({ stationId, ...s }) => ({ ...s, machineId: stationId, exerciseId: ex(s.exerciseId) })),
       bodyweights: (t.bodyweights ?? []).map(({ id, date, weightKg }) => ({ id, date, weightKg })),
-      cardio: (t.cardio ?? []).map(({ id, date, kind, durationMin, distanceKm, kcal, gymId }) => ({ id, date, kind, durationMin, distanceKm, kcal, gymId })),
+      cardio: (t.cardio ?? []).map(({ id, date, kind, durationMin, distanceKm, kcal, gymId }) => ({
+        id,
+        date,
+        kind: cardioKindFromText(kind),
+        durationMin,
+        distanceKm,
+        kcal,
+        gymId,
+      })),
     },
   };
 }

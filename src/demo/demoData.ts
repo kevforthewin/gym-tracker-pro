@@ -3,7 +3,8 @@
  * also nie synchronisiert – und lassen sich mit einem Tipp wieder entfernen.
  */
 import { db, getMeta, setMeta } from '../local/db';
-import type { Gym, GymMachine, Plan, PlanDay, PlanDayExercise, Session, SetEntry, UserGym } from '../model/types';
+import type { CardioEntry, Gym, GymMachine, Plan, PlanDay, PlanDayExercise, Session, SetEntry, UserGym } from '../model/types';
+import { isoOf } from '../domain/dashboard';
 
 const DEMO_USER = 'demo';
 const KEY = 'demoIds';
@@ -101,7 +102,18 @@ export async function loadDemo(now = Date.now()) {
       }
     }
 
-  await db.transaction('rw', [db.gyms, db.gymMachines, db.userGyms, db.plans, db.planDays, db.planDayExercises, db.sessions, db.sets, db.meta], async () => {
+  // Cardio: jedes 2. Training mit 10 min Laufband zum Aufwärmen, dazu 1× pro Woche Laufen draußen
+  const cardio: CardioEntry[] = [];
+  sessions.forEach((s, i) => {
+    if (i % 2 === 0)
+      cardio.push({ id: `demo-c-${s.id}`, date: isoOf(s.startedAt), kind: 'treadmill', durationMin: 10, distanceKm: 1.4, sessionId: s.id, gymId: s.gymId, createdAt: s.startedAt, userId: DEMO_USER, updatedAt: t });
+  });
+  for (let w = 0; w < 8; w++) {
+    const ts = now - (54 - w * 7) * DAY + 8 * 3600000;
+    cardio.push({ id: `demo-run-${w}`, date: isoOf(ts), kind: 'run', durationMin: 28 + w, distanceKm: 4.5 + w * 0.2, createdAt: ts, userId: DEMO_USER, updatedAt: t });
+  }
+
+  await db.transaction('rw', [db.gyms, db.gymMachines, db.userGyms, db.plans, db.planDays, db.planDayExercises, db.sessions, db.sets, db.cardio, db.meta], async () => {
     await db.gyms.bulkPut(gyms);
     await db.gymMachines.bulkPut(machines);
     await db.userGyms.bulkPut(userGyms);
@@ -110,7 +122,9 @@ export async function loadDemo(now = Date.now()) {
     await db.planDayExercises.bulkPut(pdes);
     await db.sessions.bulkPut(sessions);
     await db.sets.bulkPut(sets);
+    await db.cardio.bulkPut(cardio);
     const ids: Ids = {
+      cardio: cardio.map((x) => x.id),
       gyms: gyms.map((x) => x.id),
       gymMachines: machines.map((x) => x.id),
       userGyms: userGyms.map((x) => x.id),
@@ -130,11 +144,13 @@ export async function removeDemo() {
   if (!ids) return;
   const demoSessions = new Set([...ids.sessions, ...(await db.sessions.where('gymId').anyOf(ids.gyms).primaryKeys())]);
   const extraSets = await db.sets.where('sessionId').anyOf([...demoSessions]).primaryKeys();
-  await db.transaction('rw', [db.gyms, db.gymMachines, db.userGyms, db.plans, db.planDays, db.planDayExercises, db.sessions, db.sets, db.meta, db.outbox], async () => {
+  const extraCardio = (await db.cardio.toArray()).filter((c) => c.sessionId && demoSessions.has(c.sessionId)).map((c) => c.id);
+  await db.transaction('rw', [db.gyms, db.gymMachines, db.userGyms, db.plans, db.planDays, db.planDayExercises, db.sessions, db.sets, db.cardio, db.meta, db.outbox], async () => {
     for (const [table, list] of Object.entries(ids)) await db.table(table).bulkDelete(list);
     await db.sessions.bulkDelete([...demoSessions]);
     await db.sets.bulkDelete(extraSets);
-    const gone = new Set<string>([...Object.values(ids).flat(), ...demoSessions, ...extraSets.map(String)]);
+    await db.cardio.bulkDelete(extraCardio);
+    const gone = new Set<string>([...Object.values(ids).flat(), ...demoSessions, ...extraSets.map(String), ...extraCardio]);
     const queued = await db.outbox.toArray();
     await db.outbox.bulkDelete(queued.filter((e) => gone.has(e.rowId)).map((e) => e.seq!));
     await db.meta.delete(KEY);
