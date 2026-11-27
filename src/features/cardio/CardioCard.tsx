@@ -31,7 +31,7 @@ export function CardioCard() {
   if (!data) return null;
 
   return (
-    <section className="mt-3 rounded-card bg-slate-900 p-4">
+    <section className="rounded-card bg-slate-900 p-4">
       <div className="flex items-start justify-between gap-2">
         <div>
           <h2 className="text-lg font-bold">Cardio</h2>

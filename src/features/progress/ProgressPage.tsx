@@ -1,13 +1,16 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ProgressCards } from './ProgressCards';
-import { CardioCard } from '../cardio/CardioCard';
+import { OverviewTab } from './OverviewTab';
+import { ExercisesTab } from './ExercisesTab';
+import { VolumeTab } from './VolumeTab';
+import { BodyTab } from './BodyTab';
+import { useProgressData } from './progressData';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Card, PageHeader } from '../../components/ui';
+import { Card, PageHeader, Segmented } from '../../components/ui';
 import { all, db } from '../../local/db';
 import { exerciseHistSets, machineViews } from '../../local/queries';
-import { consistency, SPLIT_LABEL } from '../../domain/dashboard';
+import { SPLIT_LABEL } from '../../domain/dashboard';
 import { e1rm } from '../../domain/metrics';
 import { fmtNumber, fmtShortDate } from '../../domain/units';
 import type { Exercise } from '../../model/types';
@@ -28,42 +31,48 @@ export default function ProgressPage() {
       </>
     );
 
+  return <ProgressHome onOpen={(id) => setParams({ ex: id })} />;
+}
+
+type Tab = 'overview' | 'exercises' | 'volume' | 'body';
+
+function ProgressHome({ onOpen }: { onOpen: (exerciseId: string) => void }) {
+  const [tab, setTab] = useState<Tab>(() => {
+    try {
+      return (sessionStorage.getItem('progressTab') as Tab) || 'overview';
+    } catch {
+      return 'overview';
+    }
+  });
+  const choose = (t: Tab) => {
+    setTab(t);
+    try {
+      sessionStorage.setItem('progressTab', t);
+    } catch {
+      /* egal */
+    }
+  };
+  const data = useProgressData();
   return (
     <>
       <PageHeader title="Fortschritt" />
-      <ConsistencyStrip />
-      <CardioCard />
-      <ProgressCards onOpen={(id) => setParams({ ex: id })} />
+      <div className="mb-4">
+        <Segmented
+          value={tab}
+          onChange={choose}
+          options={[
+            { value: 'overview', label: 'Überblick' },
+            { value: 'exercises', label: 'Übungen' },
+            { value: 'volume', label: 'Volumen' },
+            { value: 'body', label: 'Körper' },
+          ]}
+        />
+      </div>
+      {data && tab === 'overview' && <OverviewTab data={data} onOpen={onOpen} />}
+      {data && tab === 'exercises' && <ExercisesTab data={data} onOpen={onOpen} />}
+      {data && tab === 'volume' && <VolumeTab data={data} />}
+      {data && tab === 'body' && <BodyTab data={data} />}
     </>
-  );
-}
-
-function ConsistencyStrip() {
-  const c = useLiveQuery(async () => {
-    const [sessions, goal] = await Promise.all([all('sessions'), db.meta.get('weeklyGoal')]);
-    return consistency(
-      sessions.map((s) => ({ id: s.id, gymId: s.gymId, split: 'other' as const, startedAt: s.startedAt })),
-      [],
-      (goal?.value as number) ?? 3,
-      4,
-    );
-  }, []);
-  if (!c) return null;
-  return (
-    <dl className="flex justify-between rounded-card bg-slate-900 px-4 py-3 text-center">
-      <Stat label="letzte 7 Tage" value={`${c.last7}/${c.goal}`} good={c.last7 >= c.goal} />
-      <Stat label="Ø/Woche (4 W.)" value={fmtNumber(c.avg4w, 1)} good={c.avg4w >= c.goal} />
-      <Stat label={c.inGoalWeeks === 1 ? 'Woche im Ziel' : 'Wochen im Ziel'} value={c.inGoalWeeks ? String(c.inGoalWeeks) : '–'} good={c.inGoalWeeks > 0} />
-    </dl>
-  );
-}
-
-function Stat({ label, value, good }: { label: string; value: string; good?: boolean }) {
-  return (
-    <div>
-      <dd className={`text-base font-bold tabular-nums ${good ? 'text-emerald-400' : ''}`}>{value}</dd>
-      <dt className="text-[10px] text-slate-500">{label}</dt>
-    </div>
   );
 }
 

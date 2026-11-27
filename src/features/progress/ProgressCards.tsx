@@ -116,8 +116,8 @@ export function ProgressCards({ onOpen }: { onOpen: (exerciseId: string) => void
 
   return (
     <>
-      <div className="mb-2 mt-6 flex items-center justify-between">
-        <h2 className="text-xl font-bold">Übungen</h2>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-xl font-bold">Angeheftet</h2>
         <IconButton label="Chart hinzufügen" onClick={() => setAdding(true)}>
           <Plus size={20} />
         </IconButton>

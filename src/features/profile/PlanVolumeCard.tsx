@@ -17,8 +17,8 @@ import { fmtNumber } from '../../domain/units';
 import type { Exercise, PlanDay, PlanDayExercise } from '../../model/types';
 
 const SCALE_MAX = 24;
-const COLOR = { none: '#4a4a4f', low: '#ff9f0a', ok: '#30d158', high: '#64d2ff' } as const;
-const LABEL = { none: 'nicht trainiert', low: 'zu wenig', ok: 'gut', high: 'viel' } as const;
+export const COLOR = { none: '#4a4a4f', low: '#ff9f0a', ok: '#30d158', high: '#64d2ff' } as const;
+export const LABEL = { none: 'nicht trainiert', low: 'zu wenig', ok: 'gut', high: 'viel' } as const;
 const tone = (v?: MuscleVolume) => (!v || v.sets === 0 ? 'none' : v.status);
 
 export function PlanVolumeCard({ days, pdes, exercises }: { days: PlanDay[]; pdes: PlanDayExercise[]; exercises: Map<string, Exercise> }) {
