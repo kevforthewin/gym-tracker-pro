@@ -221,6 +221,66 @@ export function ActiveSessionPage() {
 
   const machinesFor = (u?: Unit): GymMachine[] => (u ? machines.filter((m) => m.exerciseId === u.exercise.id) : []);
 
+  // Links/Rechts derselben Übung als eine Kachel (nur wenn beide sichtbar sind)
+  const groups: Unit[][] = [];
+  const paired = new Set<string>();
+  for (const u of visible) {
+    if (paired.has(u.key)) continue;
+    const { base, side } = splitSide(u.exercise.name);
+    const partner = side
+      ? visible.find((x) => {
+          const o = splitSide(x.exercise.name);
+          return x.key !== u.key && !paired.has(x.key) && o.side && o.side !== side && o.base.toLowerCase() === base.toLowerCase();
+        })
+      : undefined;
+    if (partner) {
+      const pairUnits = side === 'links' ? [u, partner] : [partner, u];
+      pairUnits.forEach((x) => paired.add(x.key));
+      groups.push(pairUnits);
+    } else groups.push([u]);
+  }
+  const renderCard = (u: Unit, pair?: 'first' | 'second', group: Unit[] = [u]) => (
+          <ExerciseCard
+            key={u.key}
+            pair={pair}
+            onSkip={pair === 'second' ? undefined : () => group.forEach((x) => skip(x))}
+            deload={session.deload}
+            sessionId={session.id}
+            gymId={session.gymId}
+            exercise={u.exercise}
+            machine={machineOf(u)}
+            alternatives={machinesFor(u)}
+            prescription={prescriptionOf(u.pde)}
+            sets={setsOf(u)}
+            onPickMachine={() => setPicking(u)}
+            onMove={(d) => move(u, d)}
+            onRemove={u.pde ? undefined : () => setOrder(units.filter((x) => x.key !== u.key).map((x) => x.key))}
+            plan={
+              day
+                ? {
+                    gymName: gym?.name ?? 'diesem Gym',
+                    dayName: day.name,
+                    onExcludeGym: u.pde ? () => group.forEach((x) => excludeInGym(x)) : undefined,
+                    onRemove: u.pde ? () => group.forEach((x) => removeFromPlan(x)) : undefined,
+                    onAdd: u.pde ? undefined : () => group.forEach((x) => addToPlan(x)),
+                  }
+                : undefined
+            }
+            slot={
+              u.pde?.slotId && setsOf(u).length === 0
+                ? {
+                    label: slotById(u.pde.slotId)?.label ?? '',
+                    options: (slotById(u.pde.slotId)?.alternatives ?? [])
+                      .map((id) => data.exercises.get(id))
+                      .filter((e): e is Exercise => !!e)
+                      .map((e) => ({ exercise: e, inGym: machines.some((m) => m.exerciseId === e.id) || !!e.freeWeight })),
+                    onSwap: (id: string) => swapExercise(u, id),
+                  }
+                : undefined
+            }
+          />
+  );
+
   return (
     <>
       <PageHeader
@@ -243,46 +303,16 @@ export function ActiveSessionPage() {
       )}
 
       <div className="space-y-3">
-        {visible.map((u) => (
-          <ExerciseCard
-            key={u.key}
-            onSkip={() => skip(u)}
-            deload={session.deload}
-            sessionId={session.id}
-            gymId={session.gymId}
-            exercise={u.exercise}
-            machine={machineOf(u)}
-            alternatives={machinesFor(u)}
-            prescription={prescriptionOf(u.pde)}
-            sets={setsOf(u)}
-            onPickMachine={() => setPicking(u)}
-            onMove={(d) => move(u, d)}
-            onRemove={u.pde ? undefined : () => setOrder(units.filter((x) => x.key !== u.key).map((x) => x.key))}
-            plan={
-              day
-                ? {
-                    gymName: gym?.name ?? 'diesem Gym',
-                    dayName: day.name,
-                    onExcludeGym: u.pde ? () => excludeInGym(u) : undefined,
-                    onRemove: u.pde ? () => removeFromPlan(u) : undefined,
-                    onAdd: u.pde ? undefined : () => addToPlan(u),
-                  }
-                : undefined
-            }
-            slot={
-              u.pde?.slotId && setsOf(u).length === 0
-                ? {
-                    label: slotById(u.pde.slotId)?.label ?? '',
-                    options: (slotById(u.pde.slotId)?.alternatives ?? [])
-                      .map((id) => data.exercises.get(id))
-                      .filter((e): e is Exercise => !!e)
-                      .map((e) => ({ exercise: e, inGym: machines.some((m) => m.exerciseId === e.id) || !!e.freeWeight })),
-                    onSwap: (id: string) => swapExercise(u, id),
-                  }
-                : undefined
-            }
-          />
-        ))}
+        {groups.map((g) =>
+          g.length === 2 ? (
+            <div key={g[0].key} className="rounded-card bg-slate-900">
+              {renderCard(g[0], 'first', g)}
+              {renderCard(g[1], 'second', g)}
+            </div>
+          ) : (
+            renderCard(g[0])
+          ),
+        )}
       </div>
 
       {hiddenList.length > 0 && <HiddenUnits units={hiddenList} reason={(u) => REASON_TEXT(hidden.get(u.key)!)} onRestore={restore} />}

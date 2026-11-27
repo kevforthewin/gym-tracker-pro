@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { splitSide } from '../../domain/exerciseDefaults';
 import { ArrowUp, Check, Eye, EyeOff, Plus, Share2, X } from 'lucide-react';
 import { MuscleTile } from '../../components/MuscleIcon';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -105,6 +106,21 @@ export function PlanPage() {
       <div className="space-y-4">
         {days?.map((d) => {
           const list = pdes?.filter((p) => p.planDayId === d.id) ?? [];
+          // Links/Rechts derselben Übung als eine Zeile
+          const partnerOf = new Map<string, { other: PlanDayExercise; second: boolean }>();
+          for (const p of list) {
+            if (partnerOf.has(p.id) || p.slotId) continue;
+            const a = splitSide(exercises?.get(p.exerciseId)?.name ?? '');
+            if (!a.side) continue;
+            const q = list.find((x) => {
+              const b = splitSide(exercises?.get(x.exerciseId)?.name ?? '');
+              return x.id !== p.id && !partnerOf.has(x.id) && b.side && b.side !== a.side && b.base.toLowerCase() === a.base.toLowerCase();
+            });
+            if (q) {
+              partnerOf.set(p.id, { other: q, second: false });
+              partnerOf.set(q.id, { other: p, second: true });
+            }
+          }
           const missing = gymId
             ? list.filter(
                 (p) =>
@@ -144,11 +160,16 @@ export function PlanPage() {
                 </button>
               )}
               <ul className="divide-y divide-slate-800">
-                {list.map((p, i) => (
+                {list.map((p, i) => {
+                  if (partnerOf.has(p.id) && partnerOf.get(p.id)!.second) return null;
+                  const partner = partnerOf.get(p.id)?.other;
+                  const nm = slotById(p.slotId)?.label ?? exercises?.get(p.exerciseId)?.name ?? '?';
+                  return (
                   <PdeRow
                     key={p.id}
                     pde={p}
-                    name={slotById(p.slotId)?.label ?? exercises?.get(p.exerciseId)?.name ?? '?'}
+                    partner={partner}
+                    name={partner ? `${splitSide(nm).base} (links + rechts)` : nm}
                     hint={
                       p.slotId
                         ? (slotById(p.slotId)?.alternatives ?? [])
@@ -165,7 +186,8 @@ export function PlanPage() {
                     }
                     skippedIn={(p.skipGyms ?? []).map((g) => gymName.get(g)).filter((n): n is string => !!n)}
                   />
-                ))}
+                  );
+                })}
               </ul>
               <Button variant="secondary" className="mt-2 w-full" onClick={() => setAdding(d)}>
                 + Übung
@@ -192,6 +214,7 @@ export function PlanPage() {
 
 function PdeRow({
   pde,
+  partner,
   name,
   hint,
   prev,
@@ -201,6 +224,8 @@ function PdeRow({
   skippedIn,
 }: {
   pde: PlanDayExercise;
+  /** Gegenstück (links/rechts) – Änderungen gelten für beide */
+  partner?: PlanDayExercise;
   name: string;
   hint?: string;
   prev?: PlanDayExercise;
@@ -213,11 +238,14 @@ function PdeRow({
   const [edit, setEdit] = useState(false);
   const [v, setV] = useState({ sets: pde.sets, repMin: pde.repMin, repMax: pde.repMax });
   const off = !!gym && !!pde.skipGyms?.includes(gym.id);
+  const both = partner ? [pde, partner] : [pde];
   const toggleGym = () =>
     gym &&
-    patch('planDayExercises', pde.id, {
-      skipGyms: off ? (pde.skipGyms ?? []).filter((g) => g !== gym.id) : [...(pde.skipGyms ?? []), gym.id],
-    });
+    both.forEach((x) =>
+      patch('planDayExercises', x.id, {
+        skipGyms: off ? (x.skipGyms ?? []).filter((g) => g !== gym.id) : [...(x.skipGyms ?? []).filter((g) => g !== gym.id), gym.id],
+      }),
+    );
   return (
     <li className="py-2">
       <div className="flex items-center gap-2">
@@ -259,7 +287,7 @@ function PdeRow({
             <ArrowUp size={16} />
           </button>
         )}
-        <button type="button" aria-label="Entfernen" className="px-2 text-slate-500" onClick={() => remove('planDayExercises', pde.id)}>
+        <button type="button" aria-label="Entfernen" className="px-2 text-slate-500" onClick={() => both.forEach((x) => remove('planDayExercises', x.id))}>
           <X size={16} />
         </button>
       </div>
@@ -273,7 +301,7 @@ function PdeRow({
           ))}
           <Button
             onClick={async () => {
-              await patch('planDayExercises', pde.id, v);
+              for (const x of both) await patch('planDayExercises', x.id, v);
               setEdit(false);
             }}
           >

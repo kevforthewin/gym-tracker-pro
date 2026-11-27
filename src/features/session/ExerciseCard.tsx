@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { splitSide } from '../../domain/exerciseDefaults';
 import { loadStep } from '../../domain/loadStep';
 import { ExerciseName, shortLine } from '../../components/ExerciseName';
 import { applyDeload } from '../../domain/deload';
@@ -40,6 +41,8 @@ interface Props {
   /** „Heute nicht“: Übung für dieses Training ausblenden */
   onSkip?: () => void;
   /** Plan dauerhaft anpassen (nicht nur dieses Training) */
+  /** Links/Rechts-Paar in einer Kachel: erster Teil mit Kopf, zweiter nur mit Seitenzeile */
+  pair?: 'first' | 'second';
   plan?: { gymName: string; dayName: string; onExcludeGym?: () => void; onRemove?: () => void; onAdd?: () => void };
   /** Platz aus einer Vorlage: Übung kann gegen eine Alternative getauscht werden (solange noch kein Satz gespeichert ist) */
   slot?: { label: string; options: { exercise: Exercise; inGym: boolean }[]; onSwap: (exerciseId: string) => void };
@@ -48,7 +51,7 @@ interface Props {
 const scoreOf = (type: Exercise['type'], s: WorkSet) =>
   type === 'time_distance' ? (s.distanceM ?? 0) || (s.durationSec ?? 0) : type === 'bodyweight' && !s.weightKg ? (s.reps ?? 0) : e1rm(s.weightKg ?? 0, s.reps ?? 0);
 
-export function ExerciseCard({ sessionId, exercise, machine, alternatives, prescription, sets, onPickMachine, onMove, onRemove, slot, deload, onSkip, plan }: Props) {
+export function ExerciseCard({ sessionId, exercise, machine, alternatives, prescription, sets, onPickMachine, onMove, onRemove, slot, deload, onSkip, plan, pair }: Props) {
   const nav = useNavigate();
   const needsMachine = !machine && !exercise.freeWeight && alternatives.length > 0;
   const info = useLiveQuery(
@@ -110,24 +113,42 @@ export function ExerciseCard({ sessionId, exercise, machine, alternatives, presc
         : 'Ohne Gerät';
   const subText = machine ? (sameName ? undefined : modelLine) : exercise.freeWeight ? 'alle Gyms' : undefined;
 
+  const sideSplit = pair ? splitSide(exercise.name) : undefined;
+  const machineButton = (
+    <button type="button" onClick={onPickMachine} className="mt-0.5 flex max-w-full items-start gap-0.5 text-left text-sm leading-snug text-slate-400">
+      <span className={`line-clamp-2 ${needsMachine ? 'font-semibold text-amber-300' : ''}`}>
+        {machineText}
+        {subText && <span className="text-slate-500"> · {subText}</span>}
+      </span>
+      <ChevronDown size={14} className="mt-0.5 shrink-0" />
+    </button>
+  );
+  const sideRow = sideSplit?.side && (
+    <div className={`flex items-baseline gap-2 ${pair === 'first' ? 'mt-3' : ''}`}>
+      <span className="shrink-0 text-xs font-bold uppercase tracking-wide text-slate-300">
+        {done && <Check size={14} className="mr-0.5 inline text-emerald-400" strokeWidth={3} />}
+        {sideSplit.side === 'links' ? 'Links' : 'Rechts'}
+      </span>
+      <span className="min-w-0">{machineButton}</span>
+    </div>
+  );
+
   return (
-    <section className="rounded-card bg-slate-900 p-4">
+    <section className={pair ? (pair === 'second' ? 'border-t border-slate-800 px-4 pb-4 pt-3' : 'p-4 pb-3') : 'rounded-card bg-slate-900 p-4'}>
+      {pair === 'second' ? (
+        sideRow
+      ) : (
+      <>
       {/* Kopf: Muskel-Icon, Übung, Gerät (antippen = wechseln), Aktionen */}
       <div className="flex items-start gap-3">
         <MuscleTile muscle={exercise.muscleGroup} exerciseId={exercise.id} />
         <div className="min-w-0 flex-1">
           {slot && <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{slot.label}</p>}
           <h3 className="text-lg font-bold leading-snug">
-            {done && <Check size={18} className="mr-1 inline text-emerald-400" strokeWidth={3} />}
-            <ExerciseName name={exercise.name} className="inline" />
+            {done && !pair && <Check size={18} className="mr-1 inline text-emerald-400" strokeWidth={3} />}
+            <ExerciseName name={sideSplit ? `${sideSplit.base} (links + rechts)` : exercise.name} className="inline" />
           </h3>
-          <button type="button" onClick={onPickMachine} className="mt-0.5 flex max-w-full items-start gap-0.5 text-left text-sm leading-snug text-slate-400">
-            <span className={`line-clamp-2 ${needsMachine ? 'font-semibold text-amber-300' : ''}`}>
-              {machineText}
-              {subText && <span className="text-slate-500"> · {subText}</span>}
-            </span>
-            <ChevronDown size={14} className="mt-0.5 shrink-0" />
-          </button>
+          {!pair && machineButton}
         </div>
         <div className="-mr-1 flex shrink-0">
           <IconButton label="Optionen" className="h-9 w-9 bg-transparent" onClick={() => setMenu(true)}>
@@ -140,6 +161,10 @@ export function ExerciseCard({ sessionId, exercise, machine, alternatives, presc
           )}
         </div>
       </div>
+
+      {sideRow}
+      </>
+      )}
 
       {/* Eine kurze Hinweiszeile – Details beim Antippen */}
       {target && (
