@@ -1,7 +1,8 @@
 /** Pläne aus Vorlagen anlegen und Plätze im Gym auflösen. */
 import { repsFor, resolveSlot, slotById, TEMPLATES } from '../domain/slots';
+import { planDuplicates } from '../domain/planDedupe';
 import { nextPlanDay } from '../domain/planRotation';
-import { all, db, getMeta, save, setMeta } from './db';
+import { all, db, getMeta, patch, remove, save, setMeta } from './db';
 import { isDeloadWeek, nextDeloadWeek, type DeloadOverride } from '../domain/deload';
 import { weekStart } from '../domain/insights';
 import type { SharedPlan } from '../domain/planShare';
@@ -148,4 +149,12 @@ export async function importSharedPlan(p: SharedPlan) {
   }
   if (p.perWeek) await setMeta('weeklyGoal', p.perWeek);
   return plan;
+}
+
+/** Doppelte Übungen pro Trainingstag zusammenführen (z. B. aus einem importierten Plan für mehrere Gyms) */
+export async function dedupePlanEntries() {
+  const { remove: rm, update } = planDuplicates(await all('planDayExercises'));
+  for (const u of update) await patch('planDayExercises', u.id, { sets: u.sets, skipGyms: u.skipGyms });
+  for (const id of rm) await remove('planDayExercises', id);
+  return rm.length;
 }

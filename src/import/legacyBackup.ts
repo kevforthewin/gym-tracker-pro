@@ -7,6 +7,7 @@
  * - IDs bleiben erhalten → erneuter Import erzeugt keine Duplikate.
  */
 import type { Exercise, ExerciseType, Split } from '../model/types';
+import { planDuplicates } from '../domain/planDedupe';
 
 interface OldExercise {
   id: string;
@@ -249,7 +250,13 @@ export function planImport(b: LegacyBackup, catalog: Exercise[]): ImportPlan {
         })),
       plans: t.plans ?? [],
       planDays: t.planDays ?? [],
-      planDayExercises: (t.planDayExercises ?? []).map((p) => ({ ...p, exerciseId: ex(p.exerciseId) })),
+      planDayExercises: (() => {
+        // gleiche Übung aus Gym-spezifischen Einträgen (z. B. „Latzug“ / „Latzug Matrix“) nur einmal pro Tag
+        const rows = (t.planDayExercises ?? []).map((p) => ({ ...p, exerciseId: ex(p.exerciseId) }));
+        const { remove, update } = planDuplicates(rows);
+        const upd = new Map(update.map((u) => [u.id, u]));
+        return rows.filter((p) => !remove.includes(p.id)).map((p) => (upd.has(p.id) ? { ...p, sets: upd.get(p.id)!.sets } : p));
+      })(),
       sessions: (t.sessions ?? []).map(({ id, gymId, planDayId, startedAt, finishedAt, notes }) => ({
         id,
         gymId,
