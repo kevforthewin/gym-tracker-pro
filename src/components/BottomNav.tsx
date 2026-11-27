@@ -1,12 +1,12 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Dumbbell, History, MapPin, TrendingUp, UserRound } from 'lucide-react';
+import { ClipboardList, Dumbbell, History, TrendingUp, UserRound } from 'lucide-react';
 
 const items = [
   { to: '/', label: 'Training', icon: Dumbbell, match: (p: string) => p === '/' || p.startsWith('/session') },
-  { to: '/history', label: 'Verlauf', icon: History, match: (p: string) => p.startsWith('/history') },
   { to: '/progress', label: 'Fortschritt', icon: TrendingUp, match: (p: string) => p.startsWith('/progress') },
-  { to: '/gyms', label: 'Gyms', icon: MapPin, match: (p: string) => p.startsWith('/gyms') },
-  { to: '/profile', label: 'Profil', icon: UserRound, match: (p: string) => p.startsWith('/profile') },
+  { to: '/history', label: 'Verlauf', icon: History, match: (p: string) => p.startsWith('/history') },
+  { to: '/plan', label: 'Plan', icon: ClipboardList, match: (p: string) => p.startsWith('/plan') || p.startsWith('/gyms') || p.startsWith('/profile/plan') },
+  { to: '/profile', label: 'Profil', icon: UserRound, match: (p: string) => p.startsWith('/profile') && !p.startsWith('/profile/plan') },
 ];
 
 /** Schwebende Navigationsleiste in Pillenform */

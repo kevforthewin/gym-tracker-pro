@@ -39,7 +39,7 @@ export function Tour({ onDone }: { onDone: () => void }) {
     await setMeta('tourSeen', true);
     if (demo) await loadDemo();
     onDone();
-    nav(demo ? '/' : '/gyms');
+    nav(demo ? '/' : '/plan');
   };
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black px-6 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-[max(env(safe-area-inset-top),1.5rem)]">

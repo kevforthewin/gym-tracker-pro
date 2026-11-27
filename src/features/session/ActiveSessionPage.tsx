@@ -320,7 +320,7 @@ export function ActiveSessionPage() {
         <button
           type="button"
           className="mt-3 flex w-full items-center justify-center gap-1.5 py-2 text-sm font-semibold text-slate-400"
-          onClick={() => nav(`/profile/plan/${day.planId}?gym=${session.gymId}&day=${day.id}`)}
+          onClick={() => nav(`/plan/${day.planId}?gym=${session.gymId}&day=${day.id}`)}
         >
           <ListChecks size={16} /> Plan „{day.name}“ für {gym?.name ?? 'dieses Gym'} bearbeiten
         </button>

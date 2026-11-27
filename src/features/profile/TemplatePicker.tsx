@@ -15,14 +15,13 @@ export function TemplatePicker({ open, onClose }: { open: boolean; onClose: () =
     const t = TEMPLATES.find((x) => x.id === id)!;
     const plan = await createPlanFromTemplate(id, freq[id] ?? t.frequencies[0]);
     onClose();
-    nav(`/profile/plan/${plan.id}`);
+    nav(`/plan/${plan.id}`);
   };
   const empty = async () => {
-    const name = prompt('Name des Plans', 'Mein Plan');
-    if (!name) return;
-    const plan = await save('plans', { name, order: (await all('plans')).length });
+    // Name lässt sich im Plan über „Name ändern“ anpassen
+    const plan = await save('plans', { name: 'Mein Plan', order: (await all('plans')).length });
     onClose();
-    nav(`/profile/plan/${plan.id}`);
+    nav(`/plan/${plan.id}`);
   };
 
   return (

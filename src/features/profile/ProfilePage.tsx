@@ -2,25 +2,21 @@ import { useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Link } from 'react-router-dom';
 import { Button, Card, PageHeader } from '../../components/ui';
-import { all, db, getMeta, setMeta } from '../../local/db';
+import { db, getMeta } from '../../local/db';
 import { importLegacy } from '../../import/applyImport';
 import { cloudEnabled } from '../../sync/supabase';
 import { runSync, signInWithEmail, signOut, useSyncStore, verifyEmailCode } from '../../sync/useSync';
 import { PRIVATE_TABLES, SHARED_TABLES } from '../../model/types';
 import { Feedback } from './Feedback';
-import { TemplatePicker } from './TemplatePicker';
 import { Tour } from '../../demo/Tour';
 import { hasDemo, loadDemo, removeDemo } from '../../demo/demoData';
 
 export function ProfilePage() {
-  const plans = useLiveQuery(async () => (await all('plans')).sort((a, b) => a.order - b.order), []);
-  const goal = useLiveQuery(async () => (await getMeta<number>('weeklyGoal')) ?? 3, []);
   const [msg, setMsg] = useState('');
   const [tour, setTour] = useState(false);
   const demo = useLiveQuery(hasDemo, []);
   const file = useRef<HTMLInputElement>(null);
 
-  const [picker, setPicker] = useState(false);
 
   const onImport = async (f: File) => {
     try {
@@ -47,37 +43,15 @@ export function ProfilePage() {
       <div className="space-y-4">
         <Account />
 
-        <Card>
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="font-semibold">Pläne</h2>
-            <Button variant="secondary" className="min-h-9 px-3 py-1 text-sm" onClick={() => setPicker(true)}>
-              + Plan
-            </Button>
-          </div>
-          {plans?.length === 0 && <p className="text-sm text-slate-500">Noch kein Plan. Starte mit einer Vorlage (Upper/Lower, Push/Pull/Legs …) oder trainiere frei.</p>}
-          <ul className="divide-y divide-slate-800">
-            {plans?.map((p) => (
-              <li key={p.id}>
-                <Link to={`/profile/plan/${p.id}`} className="flex justify-between py-2.5">
-                  {p.name} <span className="text-slate-500">›</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Card>
-
-        <Card className="flex items-center justify-between">
-          <span className="font-semibold">Wochenziel</span>
-          <span className="flex items-center gap-2">
-            <Button variant="secondary" className="min-h-9 w-9 px-0" onClick={() => setMeta('weeklyGoal', Math.max(1, (goal ?? 3) - 1))}>
-              −
-            </Button>
-            <span className="w-16 text-center tabular-nums">{goal}× / Woche</span>
-            <Button variant="secondary" className="min-h-9 w-9 px-0" onClick={() => setMeta('weeklyGoal', Math.min(7, (goal ?? 3) + 1))}>
-              +
-            </Button>
-          </span>
-        </Card>
+        <Link to="/plan" className="block">
+          <Card className="flex items-center justify-between">
+            <span>
+              <span className="block font-semibold">Trainingspläne & Gyms</span>
+              <span className="text-sm text-slate-500">jetzt im Tab „Plan“</span>
+            </span>
+            <span className="text-slate-500">›</span>
+          </Card>
+        </Link>
 
         <Card className="space-y-2">
           <h2 className="font-semibold">Daten</h2>
@@ -110,7 +84,6 @@ export function ProfilePage() {
           </Button>
         </Card>
         {tour && <Tour onDone={() => setTour(false)} />}
-        <TemplatePicker open={picker} onClose={() => setPicker(false)} />
       </div>
     </>
   );

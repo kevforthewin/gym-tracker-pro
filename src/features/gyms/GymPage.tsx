@@ -45,7 +45,7 @@ export function GymPage() {
   if (!gym)
     return (
       <>
-        <PageHeader title="Gym" back={() => nav('/gyms')} />
+        <PageHeader title="Gym" back={() => nav('/plan')} />
         <EmptyState title="Gym nicht gefunden." />
       </>
     );
@@ -63,7 +63,7 @@ export function GymPage() {
   const leave = async () => {
     if (!confirm(`„${gym.name}“ aus deinen Gyms entfernen? Deine Trainings bleiben erhalten.`)) return;
     for (const l of (await all('userGyms')).filter((l) => l.gymId === id)) await remove('userGyms', l.id);
-    nav('/gyms');
+    nav('/plan');
   };
 
   return (
@@ -85,7 +85,7 @@ export function GymPage() {
             )}
           </>
         }
-        back={() => nav('/gyms')}
+        back={() => nav('/plan')}
       />
       <StatRow
         items={[

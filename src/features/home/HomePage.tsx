@@ -140,7 +140,7 @@ export function HomePage() {
       {gyms && gyms.length === 0 ? (
         <EmptyState title="Willkommen!">
           <p className="mb-3 text-sm">Lege zuerst dein Gym an oder übernimm eins, das andere schon erfasst haben.</p>
-          <Button onClick={() => nav('/gyms')}>Gym hinzufügen</Button>
+          <Button onClick={() => nav('/plan')}>Gym hinzufügen</Button>
         </EmptyState>
       ) : (
         <Card className="space-y-3">
@@ -169,7 +169,7 @@ export function HomePage() {
             </select>
             {dayId && days?.find((d) => d.id === dayId) && (
               <Link
-                to={`/profile/plan/${days.find((d) => d.id === dayId)!.planId}?day=${dayId}${validGym ? `&gym=${validGym}` : ''}`}
+                to={`/plan/${days.find((d) => d.id === dayId)!.planId}?day=${dayId}${validGym ? `&gym=${validGym}` : ''}`}
                 className="mt-1.5 inline-block text-xs font-semibold text-slate-400"
               >
                 Übungen in diesem Plan bearbeiten

@@ -44,7 +44,7 @@ export function GymsPage() {
   );
 }
 
-function AddGymModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function AddGymModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const nav = useNavigate();
   const [q, setQ] = useState('');
   const [creating, setCreating] = useState(false);

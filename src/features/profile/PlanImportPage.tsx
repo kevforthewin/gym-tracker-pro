@@ -25,7 +25,7 @@ export function PlanImportPage() {
   if (parsed.error || !parsed.plan)
     return (
       <>
-        <PageHeader title="Plan übernehmen" back={() => nav('/profile')} />
+        <PageHeader title="Plan übernehmen" back={() => nav('/plan')} />
         <EmptyState title={parsed.error ?? 'Kein Plan im Link.'} />
       </>
     );
@@ -35,7 +35,7 @@ export function PlanImportPage() {
 
   return (
     <>
-      <PageHeader title={p.name} subtitle="Geteilter Plan" back={() => nav('/profile')} />
+      <PageHeader title={p.name} subtitle="Geteilter Plan" back={() => nav('/plan')} />
       <div className="space-y-3">
         <p className="text-sm text-slate-400">
           {p.days.length} Trainingstage
@@ -63,7 +63,7 @@ export function PlanImportPage() {
           onClick={async () => {
             setBusy(true);
             const plan = await importSharedPlan(p);
-            nav(`/profile/plan/${plan.id}`, { replace: true });
+            nav(`/plan/${plan.id}`, { replace: true });
           }}
         >
           Plan übernehmen

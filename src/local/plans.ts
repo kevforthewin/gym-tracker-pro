@@ -56,9 +56,11 @@ export async function suggestNextDay(): Promise<string | undefined> {
   )?.id;
 }
 
-/** Aktiver Plan: Plan des zuletzt trainierten Plantags, sonst der erste Plan */
+/** Aktiver Plan: selbst gewählt, sonst Plan des zuletzt trainierten Plantags, sonst der erste Plan */
 export async function activePlan() {
-  const [plans, days, sessions] = await Promise.all([all('plans'), all('planDays'), all('sessions')]);
+  const [plans, days, sessions, chosen] = await Promise.all([all('plans'), all('planDays'), all('sessions'), getMeta<string>('activePlanId')]);
+  const picked = plans.find((p) => p.id === chosen);
+  if (picked) return picked;
   const last = sessions.filter((s) => s.planDayId).sort((a, b) => b.startedAt - a.startedAt)[0];
   const planId = days.find((d) => d.id === last?.planDayId)?.planId;
   return plans.find((p) => p.id === planId) ?? [...plans].sort((a, b) => a.order - b.order)[0];
@@ -158,3 +160,5 @@ export async function dedupePlanEntries() {
   for (const id of rm) await remove('planDayExercises', id);
   return rm.length;
 }
+
+export const setActivePlan = (planId: string) => setMeta('activePlanId', planId);

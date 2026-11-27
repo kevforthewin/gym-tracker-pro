@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { splitSide } from '../../domain/exerciseDefaults';
-import { ArrowUp, Check, Eye, EyeOff, Plus, Share2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Eye, EyeOff, MoreHorizontal, Pencil, Plus, Share2, X } from 'lucide-react';
 import { MuscleTile } from '../../components/MuscleIcon';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -8,7 +8,7 @@ import { myGyms } from '../../local/queries';
 import { ExerciseName } from '../../components/ExerciseName';
 import { Button, Card, IconButton, Modal, PageHeader } from '../../components/ui';
 import { encodePlan } from '../../domain/planShare';
-import { exportPlan } from '../../local/plans';
+import { activePlan, exportPlan, setActivePlan } from '../../local/plans';
 import { alive, all, db, patch, remove, save } from '../../local/db';
 import { SPLIT_LABEL } from '../../domain/dashboard';
 import { repsFor, slotById, SLOTS } from '../../domain/slots';
@@ -25,6 +25,10 @@ export function PlanPage() {
   const exercises = useLiveQuery(async () => new Map((await all('exercises')).map((e) => [e.id, e])), []);
   const [adding, setAdding] = useState<PlanDay | null>(null);
   const [shareMsg, setShareMsg] = useState('');
+  const isActive = useLiveQuery(async () => (await activePlan())?.id === id, [id]);
+  /** Dialoge: neuer Tag, Tag bearbeiten, Plan umbenennen */
+  const [dayDialog, setDayDialog] = useState<{ day?: PlanDay } | null>(null);
+  const [renaming, setRenaming] = useState(false);
   const [params, setParams] = useSearchParams();
   const gymId = params.get('gym') ?? '';
   const gyms = useLiveQuery(myGyms, []);
@@ -45,9 +49,15 @@ export function PlanPage() {
 
   if (!alive(plan)) return null;
 
-  const addDay = async () => {
-    const name = prompt('Name des Trainingstags', 'Push');
-    if (name) await save('planDays', { planId: id, name, order: days?.length ?? 0 });
+  const addDay = () => setDayDialog({});
+  const moveDay = async (d: PlanDay, dir: -1 | 1) => {
+    const list = days ?? [];
+    const i = list.findIndex((x) => x.id === d.id);
+    const j = i + dir;
+    if (j < 0 || j >= list.length) return;
+    const reordered = [...list];
+    [reordered[i], reordered[j]] = [reordered[j], reordered[i]];
+    for (const [k, x] of reordered.entries()) if (x.order !== k) await patch('planDays', x.id, { order: k });
   };
   const share = async () => {
     const url = `${location.origin}${location.pathname}#/plan-import?d=${encodePlan(await exportPlan(id))}`;
@@ -64,14 +74,28 @@ export function PlanPage() {
   const deletePlan = async () => {
     if (!confirm(`Plan „${plan.name}“ löschen? Bisherige Trainings bleiben erhalten.`)) return;
     await remove('plans', id);
-    nav('/profile');
+    nav('/plan');
   };
 
   return (
     <>
       <PageHeader
         title={plan.name}
-        back={() => nav('/profile')}
+        subtitle={
+          <span className="flex flex-wrap items-center gap-2">
+            {isActive ? (
+              <span className="font-semibold text-emerald-400">Aktiver Plan</span>
+            ) : (
+              <button type="button" className="chip bg-white px-3 py-1 text-sm text-black" onClick={() => setActivePlan(id)}>
+                <Check size={14} /> Als aktiven Plan nutzen
+              </button>
+            )}
+            <button type="button" className="flex items-center gap-1 text-slate-400" onClick={() => setRenaming(true)}>
+              <Pencil size={13} /> Name ändern
+            </button>
+          </span>
+        }
+        back={() => nav('/plan')}
         right={
           <>
             <IconButton label="Plan teilen" onClick={share}>
@@ -133,19 +157,10 @@ export function PlanPage() {
           return (
             <Card key={d.id} id={`day-${d.id}`} className="scroll-mt-4">
               <div className="mb-2 flex items-center justify-between">
-                <h2 className="font-semibold">{d.name}</h2>
-                <button
-                  type="button"
-                  className="text-sm text-slate-500"
-                  onClick={async () => {
-                    const name = prompt('Name', d.name);
-                    if (name === '') {
-                      if (confirm('Tag löschen?')) await remove('planDays', d.id);
-                    } else if (name) await patch('planDays', d.id, { name });
-                  }}
-                >
-                  Umbenennen
-                </button>
+                <h2 className="text-lg font-bold">{d.name}</h2>
+                <IconButton label={`Tag ${d.name} bearbeiten`} className="h-9 w-9 bg-transparent" onClick={() => setDayDialog({ day: d })}>
+                  <MoreHorizontal size={18} />
+                </IconButton>
               </div>
               {missing.length > 0 && (
                 <button
@@ -207,6 +222,39 @@ export function PlanPage() {
       <button type="button" className="mt-8 w-full py-2 text-sm text-red-400" onClick={deletePlan}>
         Plan löschen
       </button>
+      {dayDialog && (
+        <DayDialog
+          day={dayDialog.day}
+          index={dayDialog.day ? (days?.findIndex((x) => x.id === dayDialog.day!.id) ?? 0) : -1}
+          count={days?.length ?? 0}
+          onClose={() => setDayDialog(null)}
+          onSave={async (name) => {
+            if (dayDialog.day) await patch('planDays', dayDialog.day.id, { name });
+            else {
+              const d = await save('planDays', { planId: id, name, order: days?.length ?? 0 });
+              setAdding(d);
+            }
+            setDayDialog(null);
+          }}
+          onMove={(dir) => dayDialog.day && moveDay(dayDialog.day, dir)}
+          onDelete={async () => {
+            if (!dayDialog.day || !confirm(`Tag „${dayDialog.day.name}“ löschen? Bisherige Trainings bleiben erhalten.`)) return;
+            await remove('planDays', dayDialog.day.id);
+            setDayDialog(null);
+          }}
+        />
+      )}
+      {renaming && (
+        <NameDialog
+          title="Plan umbenennen"
+          initial={plan.name}
+          onClose={() => setRenaming(false)}
+          onSave={async (name) => {
+            await patch('plans', id, { name });
+            setRenaming(false);
+          }}
+        />
+      )}
       {adding && <AddPdeModal day={adding} count={pdes?.filter((p) => p.planDayId === adding.id).length ?? 0} onClose={() => setAdding(null)} />}
     </>
   );
@@ -252,9 +300,11 @@ function PdeRow({
         <MuscleTile muscle={muscle} exerciseId={pde.exerciseId} className={off ? 'opacity-40' : ''} />
         <button type="button" className={`min-w-0 flex-1 text-left ${off ? 'opacity-50' : ''}`} onClick={() => setEdit((e) => !e)}>
           <ExerciseName name={name} className={off ? 'line-through' : ''} />
-          <span className="block text-xs text-slate-500">
-            {pde.sets} × {pde.repMin}–{pde.repMax}
-            {hint && ` · ${hint}`}
+          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
+            <span className="chip gap-1 bg-slate-800 px-2 py-0.5 tabular-nums text-slate-300">
+              {pde.sets} × {pde.repMin}–{pde.repMax} <Pencil size={11} />
+            </span>
+            {hint && <span className="truncate">{hint}</span>}
           </span>
           {off ? (
             <span className="block text-xs text-slate-400">in {gym!.name} ausgeblendet</span>
@@ -392,6 +442,76 @@ function AddPdeModal({ day, count, onClose }: { day: PlanDay; count: number; onC
           <Button onClick={onClose}>Fertig</Button>
         </div>
       )}
+    </Modal>
+  );
+}
+
+const DAY_NAMES = ['Push', 'Pull', 'Legs', 'Upper', 'Lower', 'Ganzkörper'];
+
+/** Trainingstag anlegen oder bearbeiten (Name, Reihenfolge, löschen) */
+function DayDialog({
+  day,
+  index,
+  count,
+  onClose,
+  onSave,
+  onMove,
+  onDelete,
+}: {
+  day?: PlanDay;
+  index: number;
+  count: number;
+  onClose: () => void;
+  onSave: (name: string) => void;
+  onMove: (dir: -1 | 1) => void;
+  onDelete: () => void;
+}) {
+  const [name, setName] = useState(day?.name ?? '');
+  return (
+    <Modal open onClose={onClose} title={day ? 'Trainingstag' : 'Neuer Trainingstag'}>
+      <label className="block">
+        <span className="label">Name</span>
+        <input className="input" value={name} autoFocus={!day} placeholder="z. B. Push" onChange={(e) => setName(e.target.value)} />
+      </label>
+      {!day && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {DAY_NAMES.map((n) => (
+            <button key={n} type="button" className={`chip px-3 py-1 text-sm ${name === n ? 'bg-white text-black' : 'bg-slate-800 text-slate-300'}`} onClick={() => setName(n)}>
+              {n}
+            </button>
+          ))}
+        </div>
+      )}
+      <Button className="mt-4 w-full" disabled={!name.trim()} onClick={() => onSave(name.trim())}>
+        {day ? 'Speichern' : 'Anlegen und Übungen wählen'}
+      </Button>
+      {day && (
+        <div className="mt-3 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="secondary" disabled={index <= 0} onClick={() => onMove(-1)}>
+              <ArrowUp size={16} /> Nach oben
+            </Button>
+            <Button variant="secondary" disabled={index >= count - 1} onClick={() => onMove(1)}>
+              <ArrowDown size={16} /> Nach unten
+            </Button>
+          </div>
+          <Button variant="ghost" className="w-full text-red-400" onClick={onDelete}>
+            Tag löschen
+          </Button>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+function NameDialog({ title, initial, onClose, onSave }: { title: string; initial: string; onClose: () => void; onSave: (name: string) => void }) {
+  const [name, setName] = useState(initial);
+  return (
+    <Modal open onClose={onClose} title={title}>
+      <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+      <Button className="mt-4 w-full" disabled={!name.trim()} onClick={() => onSave(name.trim())}>
+        Speichern
+      </Button>
     </Modal>
   );
 }
