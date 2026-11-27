@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { compareExercises } from '../../domain/exerciseOrder';
 import { ExerciseName } from '../../components/ExerciseName';
 import { ChevronRight, ExternalLink, Plus } from 'lucide-react';
 import { UscPlans } from './UscPlans';
@@ -50,7 +51,9 @@ export function GymPage() {
       </>
     );
 
-  const sorted = [...(machines ?? [])].sort((a, b) => a.label.localeCompare(b.label, 'de'));
+  const sorted = [...(machines ?? [])].sort((a, b) =>
+    sort === 'az' ? a.label.localeCompare(b.label, 'de') : (a.exercise && b.exercise ? compareExercises(a.exercise, b.exercise) : 0) || a.label.localeCompare(b.label, 'de'),
+  );
   const groups =
     sort === 'split'
       ? SPLIT_ORDER.map((s) => ({ key: s, title: s === 'other' ? 'Rumpf & Sonstiges' : SPLIT_LABEL[s], items: sorted.filter((m) => (m.exercise?.split ?? 'other') === s) }))

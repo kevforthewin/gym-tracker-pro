@@ -1,5 +1,6 @@
 /** Fortschritt → Übungen: angeheftete Charts und alle trainierten Übungen mit Entwicklung. */
 import { useMemo, useState } from 'react';
+import { compareExercises } from '../../domain/exerciseOrder';
 import { ChevronRight } from 'lucide-react';
 import { MuscleTile } from '../../components/MuscleIcon';
 import { ExerciseName } from '../../components/ExerciseName';
@@ -75,7 +76,7 @@ export function ExercisesTab({ data, onOpen }: { data: ProgressData; onOpen: (ex
       <input className="input mb-3" placeholder="Übung suchen" value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="space-y-4">
         {SPLITS.map((sp) => {
-          const list = filtered.filter((r) => r.split === sp).sort((a, b) => b.lastTs - a.lastTs);
+          const list = filtered.filter((r) => r.split === sp).sort((a, b) => compareExercises({ id: a.id, name: a.name, muscleGroup: a.muscle }, { id: b.id, name: b.name, muscleGroup: b.muscle }));
           if (!list.length) return null;
           return (
             <section key={sp}>

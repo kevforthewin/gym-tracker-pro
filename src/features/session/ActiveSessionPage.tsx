@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { compareExercises } from '../../domain/exerciseOrder';
 import { ExerciseName } from '../../components/ExerciseName';
 import { ChevronDown, EyeOff, ListChecks } from 'lucide-react';
 import { hiddenUnits, REASON_TEXT } from '../../domain/sessionVisibility';
@@ -466,8 +467,12 @@ function AddExerciseModal({
   const ms = machines
     .filter((m) => !isCardioExercise(exercises.get(m.exerciseId) ?? {}))
     .filter((m) => !t || m.label.toLowerCase().includes(t) || exercises.get(m.exerciseId)?.name.toLowerCase().includes(t))
-    .sort((a, b) => a.label.localeCompare(b.label, 'de'));
-  const free = [...exercises.values()].filter((e) => e.freeWeight && (!t || e.name.toLowerCase().includes(t)));
+    .sort((a, b) => {
+      const ea = exercises.get(a.exerciseId);
+      const eb = exercises.get(b.exerciseId);
+      return (ea && eb ? compareExercises(ea, eb) : 0) || a.label.localeCompare(b.label, 'de');
+    });
+  const free = [...exercises.values()].filter((e) => e.freeWeight && (!t || e.name.toLowerCase().includes(t))).sort(compareExercises);
   return (
     <Modal open={open} onClose={onClose} title="Übung hinzufügen">
       <input className="input mb-3" placeholder="Suchen" value={q} onChange={(e) => setQ(e.target.value)} />

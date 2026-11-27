@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { compareExercises } from '../../domain/exerciseOrder';
 import { splitSide } from '../../domain/exerciseDefaults';
-import { ArrowDown, ArrowUp, Check, Eye, EyeOff, MoreHorizontal, Pencil, Plus, Share2, X } from 'lucide-react';
+import { ArrowDown, ArrowDownUp, ArrowUp, Check, Eye, EyeOff, MoreHorizontal, Pencil, Plus, Share2, X } from 'lucide-react';
 import { MuscleTile } from '../../components/MuscleIcon';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -50,6 +51,12 @@ export function PlanPage() {
   if (!alive(plan)) return null;
 
   const addDay = () => setDayDialog({});
+  /** Tag nach Muskelgruppe und Bewegungsmuster ordnen (große Muskeln und Grundübungen zuerst) */
+  const sortDay = async (list: PlanDayExercise[]) => {
+    const ex = (p: PlanDayExercise) => exercises?.get(p.exerciseId) ?? { id: p.exerciseId, name: '' };
+    const sorted = [...list].sort((a, b) => compareExercises(ex(a), ex(b)) || a.order - b.order);
+    for (const [k, p] of sorted.entries()) if (p.order !== k) await patch('planDayExercises', p.id, { order: k });
+  };
   const moveDay = async (d: PlanDay, dir: -1 | 1) => {
     const list = days ?? [];
     const i = list.findIndex((x) => x.id === d.id);
@@ -158,9 +165,16 @@ export function PlanPage() {
             <Card key={d.id} id={`day-${d.id}`} className="scroll-mt-4">
               <div className="mb-2 flex items-center justify-between">
                 <h2 className="text-lg font-bold">{d.name}</h2>
-                <IconButton label={`Tag ${d.name} bearbeiten`} className="h-9 w-9 bg-transparent" onClick={() => setDayDialog({ day: d })}>
-                  <MoreHorizontal size={18} />
-                </IconButton>
+                <span className="flex">
+                  {list.length > 1 && (
+                    <IconButton label={`${d.name} nach Muskel und Bewegung sortieren`} className="h-9 w-9 bg-transparent" onClick={() => sortDay(list)}>
+                      <ArrowDownUp size={17} />
+                    </IconButton>
+                  )}
+                  <IconButton label={`Tag ${d.name} bearbeiten`} className="h-9 w-9 bg-transparent" onClick={() => setDayDialog({ day: d })}>
+                    <MoreHorizontal size={18} />
+                  </IconButton>
+                </span>
               </div>
               {missing.length > 0 && (
                 <button
@@ -409,7 +423,7 @@ function AddPdeModal({ day, count, onClose }: { day: PlanDay; count: number; onC
         </section>
       )}
       {order.map((s) => {
-        const items = list.filter((e) => e.split === s).sort((a, b) => a.name.localeCompare(b.name, 'de'));
+        const items = list.filter((e) => e.split === s).sort(compareExercises);
         if (!items.length) return null;
         return (
           <section key={s} className="mb-3">

@@ -4,6 +4,7 @@
  * die sich direkt einem Trainingstag hinzufügen lassen. Die Balkenliste gibt es weiterhin als Detailansicht.
  */
 import { useState } from 'react';
+import { compareExercises } from '../../domain/exerciseOrder';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Check, Plus } from 'lucide-react';
 import { BodyMap, MuscleTile } from '../../components/MuscleIcon';
@@ -150,7 +151,7 @@ function MuscleDetail({
   const seen = new Set<string>();
   const options = [...exercises.values()]
     .filter((e) => !e.deletedAt && e.type !== 'time_distance' && e.muscleGroup && canonMuscle(e.muscleGroup) === v.muscle)
-    .sort((a, b) => Number(!inPlan.has(a.id)) - Number(!inPlan.has(b.id)) || Number(!a.createdBy) - Number(!b.createdBy) || a.name.localeCompare(b.name, 'de'))
+    .sort((a, b) => Number(!inPlan.has(a.id)) - Number(!inPlan.has(b.id)) || compareExercises(a, b))
     .filter((e) => {
       const key = splitSide(e.name).base.toLowerCase();
       if (seen.has(key)) return false;

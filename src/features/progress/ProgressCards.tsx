@@ -1,5 +1,6 @@
 /** Angeheftete Fortschritts-Karten: bester Satz, Veränderung seit dem ersten Training, Mini-Chart mit Bestwerten. */
 import { useState } from 'react';
+import { compareExercises } from '../../domain/exerciseOrder';
 import { ExerciseName } from '../../components/ExerciseName';
 import { ArrowUp, MoreHorizontal, Plus } from 'lucide-react';
 import { MuscleTile } from '../../components/MuscleIcon';
@@ -209,7 +210,7 @@ export function ProgressCards({ onOpen }: { onOpen: (exerciseId: string) => void
 
       <Modal open={adding} onClose={() => setAdding(false)} title="Chart hinzufügen">
         {(['push', 'pull', 'legs', 'other'] as Split[]).map((s) => {
-          const list = (data?.available ?? []).filter((e) => e.split === s && !pins.includes(e.id)).sort((a, b) => a.name.localeCompare(b.name, 'de'));
+          const list = (data?.available ?? []).filter((e) => e.split === s && !pins.includes(e.id)).sort(compareExercises);
           if (!list.length) return null;
           return (
             <section key={s} className="mb-3">
