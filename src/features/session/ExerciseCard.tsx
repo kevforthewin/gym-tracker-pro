@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { applyDeload } from '../../domain/deload';
-import { ArrowDown, ArrowUp, ChevronRight, LineChart, MoreHorizontal, StickyNote, X } from 'lucide-react';
+import { ArrowDown, ArrowRight, ArrowUp, Check, ChevronDown, Info, LineChart, MoreHorizontal, Sparkles, StickyNote, TrendingDown, TrendingUp, X } from 'lucide-react';
 import { MuscleTile } from '../../components/MuscleIcon';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate } from 'react-router-dom';
@@ -15,13 +15,12 @@ import type { Exercise, GymMachine, SetEntry } from '../../model/types';
 import { fmtSet } from './format';
 import { SetTable } from './SetTable';
 
-const REASON_STYLE = {
+const HINT_STYLE = {
   first: 'bg-sky-500/15 text-sky-300',
   increase: 'bg-emerald-500/15 text-emerald-300',
-  repeat: 'bg-slate-700 text-slate-200',
+  repeat: 'bg-slate-800 text-slate-200',
   deload: 'bg-amber-500/15 text-amber-300',
 } as const;
-const REASON_LABEL = { first: 'Start', increase: 'Steigern', repeat: 'Halten', deload: 'Deload' } as const;
 
 interface Props {
   sessionId: string;
@@ -78,58 +77,94 @@ export function ExerciseCard({ sessionId, exercise, machine, alternatives, presc
       : 'Erstes Mal';
   const orientation = !used ? info?.levels.exercise.sessions.at(-1) : undefined;
 
+  const [details, setDetails] = useState(false);
+  const firstTarget = target?.sets[0];
+  const hint = !target
+    ? ''
+    : target.reason === 'increase'
+      ? firstTarget?.weightKg !== undefined && previous[0]?.weightKg !== undefined && firstTarget.weightKg > (previous[0].weightKg ?? 0)
+        ? `Mehr Gewicht: ${fmtSet(exercise.type, { weightKg: firstTarget.weightKg })}`
+        : 'Steigern'
+      : target.reason === 'repeat'
+        ? 'Gleiches Gewicht, 1 Wdh. mehr'
+        : target.reason === 'deload'
+          ? 'Deload: leichter trainieren'
+          : orientation
+            ? 'Neues Gerät – Startgewicht wählen'
+            : 'Erstes Mal – Startgewicht wählen';
+  const HintIcon = !target ? Info : target.reason === 'increase' ? TrendingUp : target.reason === 'repeat' ? ArrowRight : target.reason === 'deload' ? TrendingDown : Sparkles;
+  // Gerätezeile ohne Doppelungen: heißt das Gerät wie die Übung, reicht das Modell
+  const sameName = !!machine && machine.label.trim().toLowerCase() === exercise.name.trim().toLowerCase();
+  const machineText = machine
+    ? sameName
+      ? (modelLine ?? 'Gerät im Gym')
+      : machine.label
+    : exercise.freeWeight
+      ? 'Freihantel'
+      : needsMachine
+        ? 'Gerät wählen'
+        : 'Ohne Gerät';
+  const subText = machine ? (sameName ? undefined : modelLine) : exercise.freeWeight ? 'alle Gyms' : undefined;
+
   return (
     <section className="rounded-card bg-slate-900 p-4">
-      <div className="flex items-start gap-2">
-        <div className="flex-1 pt-1">
-          {slot && <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{slot.label}</p>}
-          <h3 className="text-xl font-bold leading-tight">
-            {done && <span className="text-emerald-400">✓ </span>}
+      {/* Kopf: Muskel-Icon, Übung, Gerät (antippen = wechseln), Aktionen */}
+      <div className="flex items-start gap-3">
+        <MuscleTile muscle={exercise.muscleGroup} exerciseId={exercise.id} />
+        <div className="min-w-0 flex-1">
+          {slot && <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{slot.label}</p>}
+          <h3 className="truncate text-lg font-bold leading-tight">
+            {done && <Check size={18} className="mr-1 inline text-emerald-400" strokeWidth={3} />}
             {exercise.name}
           </h3>
+          <button type="button" onClick={onPickMachine} className="flex max-w-full items-center gap-0.5 text-left text-sm text-slate-400">
+            <span className={`truncate ${needsMachine ? 'font-semibold text-amber-300' : ''}`}>
+              {machineText}
+              {subText && <span className="text-slate-500"> · {subText}</span>}
+            </span>
+            <ChevronDown size={14} className="shrink-0" />
+          </button>
         </div>
-        <IconButton label="Fortschritt" onClick={() => nav(`/progress?ex=${exercise.id}`)}>
-          <LineChart size={18} strokeWidth={1.9} />
-        </IconButton>
-        <IconButton label="Optionen" onClick={() => setMenu(true)}>
-          <MoreHorizontal size={18} strokeWidth={2} />
-        </IconButton>
-        {onSkip && sets.length === 0 && (
-          <IconButton label="Heute nicht" onClick={onSkip}>
-            <X size={18} strokeWidth={2} />
+        <div className="-mr-1 flex shrink-0">
+          <IconButton label="Fortschritt" className="h-9 w-9 bg-transparent" onClick={() => nav(`/progress?ex=${exercise.id}`)}>
+            <LineChart size={18} strokeWidth={1.9} />
           </IconButton>
-        )}
+          <IconButton label="Optionen" className="h-9 w-9 bg-transparent" onClick={() => setMenu(true)}>
+            <MoreHorizontal size={18} strokeWidth={2} />
+          </IconButton>
+          {onSkip && sets.length === 0 && (
+            <IconButton label="Heute nicht" className="h-9 w-9 bg-transparent" onClick={onSkip}>
+              <X size={18} strokeWidth={2} />
+            </IconButton>
+          )}
+        </div>
       </div>
 
-      {/* Geräte-Kachel */}
-      <button type="button" onClick={onPickMachine} className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-black px-3 py-2.5 text-left active:bg-slate-950">
-        <MuscleTile muscle={exercise.muscleGroup} exerciseId={exercise.id} />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate font-semibold">
-            {machine ? machine.label : exercise.freeWeight ? 'Freihantel' : needsMachine ? 'Gerät wählen' : 'Kein Gerät'}
-          </span>
-          <span className="block truncate text-xs text-slate-500">
-            {machine ? (modelLine ?? 'ohne Herstellermodell') : exercise.freeWeight ? 'Historie über alle Gyms' : 'Tippen, um ein Gerät zuzuordnen'}
-          </span>
-          {note && (
-            <span className="flex items-center gap-1 truncate text-xs italic text-slate-400">
-              <StickyNote size={12} className="shrink-0" /> {note}
-            </span>
-          )}
-        </span>
-        <ChevronRight size={18} className="text-slate-500" />
-      </button>
-
+      {/* Eine kurze Hinweiszeile – Details beim Antippen */}
       {target && (
-        <div className="mt-3 text-xs text-slate-500">
-          <span className={`chip mr-1.5 ${REASON_STYLE[target.reason]}`}>{REASON_LABEL[target.reason]}</span>
-          <span className="text-slate-300">Ziel {target.sets.map((s) => fmtSet(exercise.type, s)).join(' · ')}</span>
-          <p className="mt-1">
-            {levelText} · {target.message}
+        <button type="button" onClick={() => setDetails(!details)} className="mt-3 flex w-full items-center gap-2 text-left text-sm">
+          <span className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium ${HINT_STYLE[target.reason]}`}>
+            <HintIcon size={14} strokeWidth={2.2} /> {hint}
+          </span>
+          {note && <StickyNote size={14} className="shrink-0 text-slate-500" aria-label="Notiz vorhanden" />}
+          <Info size={14} className="ml-auto shrink-0 text-slate-600" />
+        </button>
+      )}
+      {target && details && (
+        <div className="mt-2 space-y-1 rounded-2xl bg-black/40 px-3 py-2 text-xs text-slate-400">
+          <p>
+            <span className="text-slate-300">Ziel:</span> {target.sets.map((x) => fmtSet(exercise.type, x)).join(' · ')}
           </p>
+          <p>{target.message}</p>
+          <p>Vergleich: {levelText}</p>
           {orientation && (
-            <p className="mt-1">
-              Orientierung (anderes Gerät, {fmtDate(orientation.date)}): {orientation.sets.map((s) => fmtSet(exercise.type, s)).join(', ')}
+            <p>
+              Orientierung (anderes Gerät, {fmtDate(orientation.date)}): {orientation.sets.map((x) => fmtSet(exercise.type, x)).join(', ')}
+            </p>
+          )}
+          {note && (
+            <p className="flex items-center gap-1 italic">
+              <StickyNote size={12} /> {note}
             </p>
           )}
         </div>
