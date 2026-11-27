@@ -4,12 +4,14 @@
  * - Ziel steht grau als Platzhalter in den Feldern; ✓ übernimmt es, Eintippen überschreibt.
  * - Erledigte Sätze grün hinterlegt, bleiben direkt bearbeitbar (Wert ändern → speichert beim Verlassen).
  * - Satznummer antippen → Aufwärmsatz, Wertung, Löschen.
+ * - Der nächste offene Satz ist als großer Editor aufgeklappt: −/+ für Gewicht und Wdh. mit großen Tasten,
+ *   darunter „Satz speichern“. Andere Sätze antippen → werden im Editor geöffnet.
  */
 import { useEffect, useState } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Minus, Plus } from 'lucide-react';
 import { Modal } from '../../components/ui';
 import { e1rm } from '../../domain/metrics';
-import type { WorkSet } from '../../domain/progression';
+import { stepDown, stepUp, type WorkSet } from '../../domain/progression';
 import { fmtDuration, fmtNumber, parseDuration, parseNum } from '../../domain/units';
 import type { ExcludeReason, Exercise, GymMachine, SetEntry } from '../../model/types';
 import { patch, remove, save } from '../../local/db';
@@ -46,7 +48,13 @@ export function SetTable({ sessionId, exercise, machine, sets, target, previous,
   const endurance = type === 'time_distance';
   const [extraRows, setExtraRows] = useState(0);
   const [menuFor, setMenuFor] = useState<SetEntry | null>(null);
+  /** Im Editor geöffneter Satz; null = automatisch der nächste offene */
+  const [focusIdx, setFocusIdx] = useState<number | null>(null);
   const rows = Math.max(target.length, sets.length) + extraRows;
+  const useEditor = !endurance && !disabled;
+  const focused = !useEditor ? -1 : focusIdx ?? (sets.length < rows ? sets.length : -1);
+  const step = machine?.weightStepKg || 2.5;
+  const steps = machine?.weightSteps;
   useEffect(() => {
     if (extraRows && sets.length >= target.length + extraRows) setExtraRows(0);
   }, [sets.length, target.length, extraRows]);
@@ -82,28 +90,53 @@ export function SetTable({ sessionId, exercise, machine, sets, target, previous,
             weightKg: lastLogged?.weightKg !== undefined && i >= sets.length && i > 0 ? lastLogged.weightKg : t.weightKg,
             reps: i >= target.length && lastLogged?.reps ? lastLogged.reps : t.reps,
           };
+          const n = logged?.isWarmup ? 'W' : String((logged ? work.indexOf(logged) : work.length + (i - sets.length)) + 1);
+          const onSave = async (v: Partial<SetEntry>) => {
+            if (logged) await patch('sets', logged.id, v);
+            else
+              await save('sets', {
+                sessionId,
+                machineId: machine?.id,
+                exerciseId: exercise.id,
+                setIndex: sets.length + 1,
+                isWarmup: false,
+                createdAt: Date.now(),
+                ...v,
+              });
+          };
+          if (i === focused)
+            return (
+              <SetEditor
+                key={`e${logged?.id ?? i}`}
+                n={n}
+                prev={short(type, previous[i])}
+                hint={hint}
+                logged={logged}
+                type={type}
+                step={step}
+                steps={steps}
+                onNumber={logged ? () => setMenuFor(logged) : undefined}
+                onSave={async (v) => {
+                  await onSave(v);
+                  setFocusIdx(null);
+                }}
+                onClose={() => setFocusIdx(-1)}
+              />
+            );
           return (
             <Row
               key={logged?.id ?? `p${i}`}
-              n={logged?.isWarmup ? 'W' : String((logged ? work.indexOf(logged) : work.length + (i - sets.length)) + 1)}
+              n={n}
               prev={short(type, previous[i])}
               hint={hint}
               logged={logged}
               best={!!logged && best.has(logged.id)}
               type={type}
               onNumber={logged ? () => setMenuFor(logged) : undefined}
+              onOpen={useEditor && (logged || i === sets.length) ? () => setFocusIdx(i) : undefined}
               onSave={async (v) => {
-                if (logged) await patch('sets', logged.id, v);
-                else
-                  await save('sets', {
-                    sessionId,
-                    machineId: machine?.id,
-                    exerciseId: exercise.id,
-                    setIndex: sets.length + 1,
-                    isWarmup: false,
-                    createdAt: Date.now(),
-                    ...v,
-                  });
+                await onSave(v);
+                setFocusIdx(null);
               }}
             />
           );
@@ -112,7 +145,10 @@ export function SetTable({ sessionId, exercise, machine, sets, target, previous,
       <button
         type="button"
         className="mt-2 w-full rounded-xl py-2.5 text-sm font-semibold text-slate-400 active:bg-slate-800"
-        onClick={() => setExtraRows((n) => n + 1)}
+        onClick={() => {
+          setExtraRows((n) => n + 1);
+          setFocusIdx(null);
+        }}
       >
         + Satz hinzufügen
       </button>
@@ -177,6 +213,7 @@ function Row({
   best,
   type,
   onNumber,
+  onOpen,
   onSave,
 }: {
   n: string;
@@ -186,6 +223,8 @@ function Row({
   best: boolean;
   type: Exercise['type'];
   onNumber?: () => void;
+  /** Kompakte Anzeige; Antippen öffnet den großen Editor */
+  onOpen?: () => void;
   onSave: (v: Partial<SetEntry>) => Promise<void>;
 }) {
   const endurance = type === 'time_distance';
@@ -251,6 +290,17 @@ function Row({
         {prev}
         {logged?.excluded && <span className="ml-1 text-[10px] text-amber-300">{EXCLUDE_LABEL[logged.excludeReason ?? 'sonstiges']}</span>}
       </span>
+      {onOpen || !endurance ? (
+        <>
+          <button type="button" onClick={onOpen} disabled={!onOpen} aria-label={`Gewicht Satz ${n}: ${a || ph[0] || '–'}`} className={`${inputCls} ${a ? 'text-white' : 'font-normal text-slate-600'}`}>
+            {a || ph[0] || '–'}
+          </button>
+          <button type="button" onClick={onOpen} disabled={!onOpen} aria-label={`Wdh. Satz ${n}: ${b || ph[1] || '–'}`} className={`${inputCls} ${b ? 'text-white' : 'font-normal text-slate-600'}`}>
+            {b || ph[1] || '–'}
+          </button>
+        </>
+      ) : (
+      <>
       <input
         aria-label={endurance ? `Dauer Satz ${n}` : `Gewicht Satz ${n}`}
         inputMode={endurance ? 'numeric' : 'decimal'}
@@ -273,6 +323,8 @@ function Row({
         onChange={(e) => setB(e.target.value)}
         onBlur={commitEdit}
       />
+      </>
+      )}
       <span className="relative mx-auto">
       {best && (
         <span className="absolute -right-1.5 -top-1.5 z-10 rounded-full bg-best px-1 text-[9px] font-black leading-4 text-black" aria-label="Neuer Bestwert">
@@ -291,6 +343,143 @@ function Row({
         <Check size={18} strokeWidth={3} />
       </button>
       </span>
+    </div>
+  );
+}
+
+/** Großer Editor für einen Satz: ± mit großen Tasten, Wert antippen zum Eintippen. */
+function SetEditor({
+  n,
+  prev,
+  hint,
+  logged,
+  type,
+  step,
+  steps,
+  onNumber,
+  onSave,
+  onClose,
+}: {
+  n: string;
+  prev: string;
+  hint: WorkSet;
+  logged?: SetEntry;
+  type: Exercise['type'];
+  step: number;
+  steps?: number[];
+  onNumber?: () => void;
+  onSave: (v: Partial<SetEntry>) => Promise<void>;
+  onClose: () => void;
+}) {
+  const bw = type === 'bodyweight';
+  const [w, setW] = useState<number | undefined>(logged?.weightKg ?? hint.weightKg ?? (bw ? 0 : undefined));
+  const [r, setR] = useState<number | undefined>(logged?.reps ?? hint.reps);
+  const ok = r !== undefined && r > 0 && (w !== undefined || bw);
+
+  return (
+    <div className={`rounded-2xl p-3 ring-1 ${logged ? 'bg-emerald-500/10 ring-emerald-500/30' : 'bg-slate-800/60 ring-white/10'}`}>
+      <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
+        <button
+          type="button"
+          onClick={onNumber}
+          disabled={!onNumber}
+          aria-label={onNumber ? `Satz ${n} Optionen` : `Satz ${n}`}
+          className="font-semibold text-slate-200"
+        >
+          Satz {n}
+        </button>
+        <span className="tabular-nums">Vorher {prev}</span>
+      </div>
+      <BigStepper
+        label={bw ? 'Zusatzgewicht' : 'Gewicht'}
+        unit="kg"
+        value={w}
+        decimal
+        onChange={setW}
+        onMinus={() => setW(stepDown(w ?? 0, step, steps))}
+        onPlus={() => setW(stepUp(w ?? 0, step, steps))}
+        stepLabel={steps?.length ? undefined : fmtNumber(step)}
+      />
+      <BigStepper
+        label="Wiederholungen"
+        unit="Wdh."
+        value={r}
+        onChange={(v) => setR(v === undefined ? undefined : Math.round(v))}
+        onMinus={() => setR(Math.max(0, (r ?? 0) - 1))}
+        onPlus={() => setR((r ?? 0) + 1)}
+      />
+      <div className="mt-3 flex gap-2">
+        {logged && (
+          <button type="button" className="h-12 flex-1 rounded-2xl bg-slate-700 font-semibold" onClick={onClose}>
+            Abbrechen
+          </button>
+        )}
+        <button
+          type="button"
+          disabled={!ok}
+          className="flex h-12 flex-[2] items-center justify-center gap-2 rounded-2xl bg-white font-bold text-black active:bg-emerald-400 disabled:opacity-40"
+          onClick={() => ok && onSave({ weightKg: w ?? 0, reps: r, excluded: logged?.excluded ?? false })}
+        >
+          <Check size={20} strokeWidth={3} /> {logged ? 'Änderung speichern' : 'Satz speichern'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function BigStepper({
+  label,
+  unit,
+  value,
+  decimal,
+  onChange,
+  onMinus,
+  onPlus,
+  stepLabel,
+}: {
+  label: string;
+  unit: string;
+  value: number | undefined;
+  decimal?: boolean;
+  onChange: (v: number | undefined) => void;
+  onMinus: () => void;
+  onPlus: () => void;
+  stepLabel?: string;
+}) {
+  const [text, setText] = useState<string | null>(null);
+  const shown = text ?? (value === undefined ? '' : fmtW(value));
+  const btn = 'flex h-14 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-slate-700 text-white active:bg-slate-500 select-none';
+  return (
+    <div className="mt-2 flex items-center gap-2">
+      <button type="button" className={btn} onClick={onMinus} aria-label={`${label} verringern`}>
+        <Minus size={24} strokeWidth={2.5} />
+        {stepLabel && <span className="text-[10px] leading-none text-slate-400">{stepLabel}</span>}
+      </button>
+      <label className="flex min-w-0 flex-1 flex-col items-center">
+        <span className="flex items-baseline gap-1">
+          <input
+            aria-label={label}
+            inputMode={decimal ? 'decimal' : 'numeric'}
+            className="w-24 bg-transparent text-center text-3xl font-bold tabular-nums outline-none"
+            value={shown}
+            placeholder="–"
+            onFocus={(e) => {
+              setText(shown);
+              e.target.select();
+            }}
+            onChange={(e) => {
+              setText(e.target.value);
+              onChange(parseNum(e.target.value));
+            }}
+            onBlur={() => setText(null)}
+          />
+        </span>
+        <span className="text-[11px] text-slate-500">{unit}</span>
+      </label>
+      <button type="button" className={btn} onClick={onPlus} aria-label={`${label} erhöhen`}>
+        <Plus size={24} strokeWidth={2.5} />
+        {stepLabel && <span className="text-[10px] leading-none text-slate-400">{stepLabel}</span>}
+      </button>
     </div>
   );
 }
