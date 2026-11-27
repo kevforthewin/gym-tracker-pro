@@ -34,7 +34,8 @@ export function nextDeloadWeek(every: number | undefined, planStart: number | un
 }
 
 /** Ziel für eine Deload-Woche: ein Drittel weniger Sätze, ~10 % weniger Gewicht */
-export function applyDeload(target: Target, increment: number, steps?: number[]): Target {
+export function applyDeload(target: Target, increment: number | ((w: number) => number), steps?: number[]): Target {
+  const inc = (w: number) => (typeof increment === 'function' ? increment(w) : increment);
   if (!target.sets.length) return target;
   const n = Math.max(1, Math.round((target.sets.length * 2) / 3));
   return {
@@ -43,7 +44,11 @@ export function applyDeload(target: Target, increment: number, steps?: number[])
     sets: target.sets.slice(0, n).map((s) => ({
       ...s,
       // auf den nächsten möglichen Gewichtsschritt (bei festen Stufen: die nächstniedrigere)
-      weightKg: s.weightKg ? (steps?.length ? floorToStep(s.weightKg * DELOAD_WEIGHT, increment, steps) : roundToIncrement(s.weightKg * DELOAD_WEIGHT, increment)) : s.weightKg,
+      weightKg: s.weightKg
+        ? steps?.length
+          ? floorToStep(s.weightKg * DELOAD_WEIGHT, inc(s.weightKg * DELOAD_WEIGHT), steps)
+          : roundToIncrement(s.weightKg * DELOAD_WEIGHT, inc(s.weightKg * DELOAD_WEIGHT))
+        : s.weightKg,
     })),
   };
 }

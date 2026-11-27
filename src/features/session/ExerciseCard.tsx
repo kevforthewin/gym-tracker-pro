@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { loadStep } from '../../domain/loadStep';
 import { ExerciseName, shortLine } from '../../components/ExerciseName';
 import { applyDeload } from '../../domain/deload';
 import { ArrowDown, ArrowRight, ArrowUp, Check, ChevronDown, Info, LineChart, MoreHorizontal, Sparkles, StickyNote, TrendingDown, TrendingUp, X } from 'lucide-react';
@@ -61,7 +62,7 @@ export function ExerciseCard({ sessionId, exercise, machine, alternatives, presc
   }, [machine?.modelId]);
   const [menu, setMenu] = useState(false);
 
-  const target = info && (deload ? applyDeload(info.target, machine?.weightStepKg || 2.5, machine?.weightSteps) : info.target);
+  const target = info && (deload ? applyDeload(info.target, (w) => loadStep(exercise, w, machine?.weightStepKg || 2.5), machine?.weightSteps) : info.target);
   const used = info?.used;
   const previous = used?.sessions.at(-1)?.sets ?? [];
   const bestBefore = Math.max(0, ...(used?.sessions.flatMap((s) => s.sets.map((x) => scoreOf(exercise.type, x))) ?? []));

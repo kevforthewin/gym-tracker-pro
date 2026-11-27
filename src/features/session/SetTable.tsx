@@ -8,6 +8,7 @@
  *   darunter „Satz speichern“. Andere Sätze antippen → werden im Editor geöffnet.
  */
 import { useEffect, useState } from 'react';
+import { loadStep } from '../../domain/loadStep';
 import { Check, Minus, Plus } from 'lucide-react';
 import { Modal } from '../../components/ui';
 import { e1rm } from '../../domain/metrics';
@@ -53,7 +54,7 @@ export function SetTable({ sessionId, exercise, machine, sets, target, previous,
   const rows = Math.max(target.length, sets.length) + extraRows;
   const useEditor = !endurance && !disabled;
   const focused = !useEditor ? -1 : focusIdx ?? (sets.length < rows ? sets.length : -1);
-  const step = machine?.weightStepKg || 2.5;
+  const step = (w: number) => loadStep(exercise, w, machine?.weightStepKg || 2.5);
   const steps = machine?.weightSteps;
   useEffect(() => {
     if (extraRows && sets.length >= target.length + extraRows) setExtraRows(0);
@@ -365,7 +366,7 @@ function SetEditor({
   hint: WorkSet;
   logged?: SetEntry;
   type: Exercise['type'];
-  step: number;
+  step: (w: number) => number;
   steps?: number[];
   onNumber?: () => void;
   onSave: (v: Partial<SetEntry>) => Promise<void>;
@@ -396,9 +397,10 @@ function SetEditor({
         value={w}
         decimal
         onChange={setW}
-        onMinus={() => setW(stepDown(w ?? 0, step, steps))}
-        onPlus={() => setW(stepUp(w ?? 0, step, steps))}
-        stepLabel={steps?.length ? undefined : fmtNumber(step)}
+        // Schritt nach unten am Zielgewicht bemessen, damit 7 → 6 und nicht 7 → 6,5 → …
+        onMinus={() => setW(stepDown(w ?? 0, step(Math.max(0, (w ?? 0) - step(w ?? 0))), steps))}
+        onPlus={() => setW(stepUp(w ?? 0, step(w ?? 0), steps))}
+        stepLabel={steps?.length ? undefined : fmtNumber(step(w ?? 0))}
       />
       <BigStepper
         label="Wiederholungen"

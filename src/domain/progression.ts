@@ -26,6 +26,8 @@ export interface TargetInput {
   prescription: Prescription;
   /** Gewichtssprung des Geräts in kg. */
   increment: number;
+  /** Optional: Schritt abhängig vom Gewicht (z. B. kleinere Schritte bei leichten Isolationsübungen) */
+  incrementAt?: (weightKg: number) => number;
   /** Einstellbare Gewichte am Gerät (optional). Haben Vorrang vor `increment`. */
   steps?: number[];
   startWeight?: number;
@@ -113,6 +115,7 @@ export function computeTarget(input: TargetInput): Target {
 function strengthTarget(input: TargetInput, history: SessionHistory[]): Target {
   const { prescription: p, increment, type, steps } = input;
   const last = history.at(-1);
+  const inc = (w: number) => input.incrementAt?.(w) ?? increment;
 
   if (!last) {
     const w = input.startWeight ?? (type === 'bodyweight' ? 0 : undefined);
@@ -132,7 +135,7 @@ function strengthTarget(input: TargetInput, history: SessionHistory[]): Target {
   const allAtMax = topSets.length >= p.sets && topSets.slice(0, p.sets).every((s) => (s.reps ?? 0) >= p.repMax);
 
   if (allAtMax) {
-    const next = stepUp(top, increment, steps);
+    const next = stepUp(top, inc(top), steps);
     const jump = fix(next - top);
     const bw = type === 'bodyweight' && top === 0;
     return {
@@ -151,8 +154,8 @@ function strengthTarget(input: TargetInput, history: SessionHistory[]): Target {
     const reps = recent.map((h) => repsAtTop(h.sets, p.sets));
     const noProgress = reps.every((r, i) => i === 0 || r <= reps[i - 1]);
     if (sameWeight && noProgress) {
-      const deload = floorToStep(top * DELOAD_FACTOR, increment, steps);
-      const w = deload < top ? deload : stepDown(top, increment, steps);
+      const deload = floorToStep(top * DELOAD_FACTOR, inc(top * DELOAD_FACTOR), steps);
+      const w = deload < top ? deload : stepDown(top, inc(top), steps);
       return {
         reason: 'deload',
         message: `${STAGNATION_SESSIONS}× keine Steigerung bei ${fmtKg(top)} – Deload auf ${fmtKg(w)} und neu aufbauen.`,

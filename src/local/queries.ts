@@ -1,5 +1,6 @@
 /** Lese-Abfragen für die Oberfläche (alle lokal, offline-fähig). */
 import { modelTitle } from '../catalog/catalog';
+import { loadStep } from '../domain/loadStep';
 import { bestLevel, historyLevels, type HistMachine, type HistSet, type HistoryLevel, type LeveledHistory } from '../domain/history';
 import { computeTarget, type Prescription, type Target } from '../domain/progression';
 import type { EquipmentModel, Exercise, Gym, GymMachine, Manufacturer, PlanDayExercise, SetEntry } from '../model/types';
@@ -123,6 +124,7 @@ export async function targetFor(args: {
     type: args.exercise.type,
     prescription: args.prescription,
     increment: args.machine?.weightStepKg ?? 2.5,
+    incrementAt: (w) => loadStep(args.exercise, w, args.machine?.weightStepKg ?? 2.5),
     steps: args.machine?.weightSteps,
     startWeight: args.startWeightKg,
     history: used?.sessions ?? [],
