@@ -5,6 +5,7 @@
  * Nutzer ergänzen fehlende Modelle in der App. IDs sind stabil (werden in Supabase gleich geseedet).
  */
 import type { EquipmentKind, EquipmentModel, Exercise, ExerciseType, Gym, Manufacturer, Split } from '../model/types';
+import { shortLine } from '../components/ExerciseName';
 import { exerciseForProduct, kindForLine } from './mapModels';
 import { VERIFIED_MODELS } from './verifiedModels';
 import { USC_KOELN_GYMS } from './uscKoeln';
@@ -265,7 +266,7 @@ export const LEGACY_MODEL_ALIAS: Record<string, string | null> = Object.fromEntr
 
 /** Anzeigename eines Modells: „Chest Press · Hoist ROC-IT Selectorized“ (Gerät vorne, Linie hinten, ohne Modellnummer) */
 export function modelTitle(m: Pick<EquipmentModel, 'line' | 'name'>, mf?: Pick<Manufacturer, 'name'>): string {
-  return `${m.name} · ${[mf?.name, m.line].filter(Boolean).join(' ')}`;
+  return `${m.name} · ${[mf?.name, shortLine(m.line)].filter(Boolean).join(' ')}`;
 }
 
 /** Katalog-Gyms (aktuell: Köln, Urban-Sports-Club-Partner) */

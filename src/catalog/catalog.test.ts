@@ -27,7 +27,7 @@ describe('Herstellerkatalog', () => {
     expect(exerciseForProduct('Glute Ham / Reverse Hyper')).toBe('back-extension');
     expect(exerciseForProduct('Vertical Smith Machine')).toBeNull();
     const roc = CATALOG_MODELS.find((m) => m.id === 'hoist--rs-2301')!;
-    expect(modelTitle(roc, { name: 'Hoist' })).toBe('Chest Press · Hoist ROC-IT Selectorized');
+    expect(modelTitle(roc, { name: 'Hoist' })).toBe('Chest Press · Hoist ROC-IT');
   });
 
   describe('Umstellung v1 → v2', () => {

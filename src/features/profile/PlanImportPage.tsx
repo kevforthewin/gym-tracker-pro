@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { ExerciseName } from '../../components/ExerciseName';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Card, EmptyState, PageHeader } from '../../components/ui';
@@ -47,7 +48,7 @@ export function PlanImportPage() {
             <ul className="space-y-0.5 text-sm text-slate-300">
               {d.x.map((it, k) => (
                 <li key={k} className="flex justify-between gap-2">
-                  <span className="truncate">{nameOf(it.s, it.e)}</span>
+                  <ExerciseName name={nameOf(it.s, it.e)} />
                   <span className="shrink-0 tabular-nums text-slate-500">
                     {it.k} × {it.a}–{it.b}
                   </span>

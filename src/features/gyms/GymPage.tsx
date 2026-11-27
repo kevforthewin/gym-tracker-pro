@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ExerciseName } from '../../components/ExerciseName';
 import { ChevronRight, ExternalLink, Plus } from 'lucide-react';
 import { UscPlans } from './UscPlans';
 import { MergeGym } from './MergeGym';
@@ -133,8 +134,8 @@ export function GymPage() {
                     <button key={m.id} type="button" className="flex w-full items-center gap-3 px-4 py-3 text-left" onClick={() => setOpen(m)}>
                       <MuscleTile muscle={m.exercise?.muscleGroup} exerciseId={m.exerciseId} />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate font-semibold">{m.label}</span>
-                        <span className="block truncate text-xs text-slate-500">{m.modelTitle ?? `${m.exercise?.name ?? ''} · ohne Modell`}</span>
+                        <ExerciseName name={m.label} className="block font-semibold leading-snug" />
+                        <span className="line-clamp-2 text-xs text-slate-500">{m.modelTitle ?? `${m.exercise?.name ?? ''} · ohne Modell`}</span>
                       </span>
                       {st && st.best.v > 0 && (
                         <span className="shrink-0 text-right text-sm">

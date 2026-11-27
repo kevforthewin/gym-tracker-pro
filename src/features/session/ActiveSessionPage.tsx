@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ExerciseName } from '../../components/ExerciseName';
 import { ChevronDown, EyeOff } from 'lucide-react';
 import { hiddenUnits, REASON_TEXT } from '../../domain/sessionVisibility';
 import { matchCatalog } from '../../import/legacyBackup';
@@ -321,7 +322,7 @@ function HiddenUnits({ units, reason, onRestore }: { units: Unit[]; reason: (u: 
             <li key={u.key} className="flex items-center gap-3 px-4 py-2.5">
               <MuscleTile muscle={u.exercise.muscleGroup} exerciseId={u.exercise.id} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">{u.exercise.name}</span>
+                <ExerciseName name={u.exercise.name} className="block text-sm font-medium" />
                 <span className="block text-xs text-slate-500">{reason(u)}</span>
               </span>
               <button type="button" className="shrink-0 text-sm font-semibold text-white" onClick={() => onRestore(u)}>

@@ -1,5 +1,6 @@
 /** Angeheftete Fortschritts-Karten: bester Satz, Veränderung seit dem ersten Training, Mini-Chart mit Bestwerten. */
 import { useState } from 'react';
+import { ExerciseName } from '../../components/ExerciseName';
 import { ArrowUp, MoreHorizontal, Plus } from 'lucide-react';
 import { MuscleTile } from '../../components/MuscleIcon';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -127,8 +128,10 @@ export function ProgressCards({ onOpen }: { onOpen: (exerciseId: string) => void
             <div className="flex items-start gap-2">
               <MuscleTile muscle={c.exercise.muscleGroup} exerciseId={c.exercise.id} />
               <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onOpen(c.exercise.id)}>
-                <h3 className="truncate text-lg font-bold">{c.exercise.name}</h3>
-                <p className="truncate text-xs text-slate-500">{c.subtitle}</p>
+                <h3 className="text-lg font-bold leading-snug">
+                  <ExerciseName name={c.exercise.name} />
+                </h3>
+                <p className="line-clamp-2 text-xs text-slate-500">{c.subtitle}</p>
               </button>
               <IconButton label="Optionen" className="h-8 w-8 bg-transparent" onClick={() => setMenu(c.exercise.id)}>
                 <MoreHorizontal size={18} />

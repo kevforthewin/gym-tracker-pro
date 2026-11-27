@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ExerciseName, shortLine } from '../../components/ExerciseName';
 import { applyDeload } from '../../domain/deload';
 import { ArrowDown, ArrowRight, ArrowUp, Check, ChevronDown, Info, LineChart, MoreHorizontal, Sparkles, StickyNote, TrendingDown, TrendingUp, X } from 'lucide-react';
 import { MuscleTile } from '../../components/MuscleIcon';
@@ -56,7 +57,7 @@ export function ExerciseCard({ sessionId, exercise, machine, alternatives, presc
   const modelLine = useLiveQuery(async () => {
     const m = machine?.modelId ? await db.equipmentModels.get(machine.modelId) : undefined;
     const mf = m ? await db.manufacturers.get(m.manufacturerId) : undefined;
-    return m ? `${m.name} · ${[mf?.name, m.line].filter(Boolean).join(' ')}` : undefined;
+    return m ? `${[mf?.name, shortLine(m.line)].filter(Boolean).join(' ')} · ${m.name}` : undefined;
   }, [machine?.modelId]);
   const [menu, setMenu] = useState(false);
 
@@ -113,22 +114,19 @@ export function ExerciseCard({ sessionId, exercise, machine, alternatives, presc
         <MuscleTile muscle={exercise.muscleGroup} exerciseId={exercise.id} />
         <div className="min-w-0 flex-1">
           {slot && <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{slot.label}</p>}
-          <h3 className="truncate text-lg font-bold leading-tight">
+          <h3 className="text-lg font-bold leading-snug">
             {done && <Check size={18} className="mr-1 inline text-emerald-400" strokeWidth={3} />}
-            {exercise.name}
+            <ExerciseName name={exercise.name} className="inline" />
           </h3>
-          <button type="button" onClick={onPickMachine} className="flex max-w-full items-center gap-0.5 text-left text-sm text-slate-400">
-            <span className={`truncate ${needsMachine ? 'font-semibold text-amber-300' : ''}`}>
+          <button type="button" onClick={onPickMachine} className="mt-0.5 flex max-w-full items-start gap-0.5 text-left text-sm leading-snug text-slate-400">
+            <span className={`line-clamp-2 ${needsMachine ? 'font-semibold text-amber-300' : ''}`}>
               {machineText}
               {subText && <span className="text-slate-500"> · {subText}</span>}
             </span>
-            <ChevronDown size={14} className="shrink-0" />
+            <ChevronDown size={14} className="mt-0.5 shrink-0" />
           </button>
         </div>
         <div className="-mr-1 flex shrink-0">
-          <IconButton label="Fortschritt" className="h-9 w-9 bg-transparent" onClick={() => nav(`/progress?ex=${exercise.id}`)}>
-            <LineChart size={18} strokeWidth={1.9} />
-          </IconButton>
           <IconButton label="Optionen" className="h-9 w-9 bg-transparent" onClick={() => setMenu(true)}>
             <MoreHorizontal size={18} strokeWidth={2} />
           </IconButton>
@@ -221,6 +219,9 @@ export function ExerciseCard({ sessionId, exercise, machine, alternatives, presc
             }}
           >
             Gerät wechseln
+          </Button>
+          <Button variant="secondary" className="w-full" onClick={() => nav(`/progress?ex=${exercise.id}`)}>
+            <LineChart size={18} /> Fortschritt ansehen
           </Button>
           {onMove && (
             <div className="grid grid-cols-2 gap-2">
