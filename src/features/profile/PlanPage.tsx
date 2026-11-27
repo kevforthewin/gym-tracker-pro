@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { ArrowUp, Check, Plus, Share2, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ArrowUp, Check, Eye, EyeOff, Plus, Share2, X } from 'lucide-react';
 import { MuscleTile } from '../../components/MuscleIcon';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { myGyms } from '../../local/queries';
+import { ExerciseName } from '../../components/ExerciseName';
 import { Button, Card, IconButton, Modal, PageHeader } from '../../components/ui';
 import { encodePlan } from '../../domain/planShare';
 import { exportPlan } from '../../local/plans';
@@ -22,6 +24,23 @@ export function PlanPage() {
   const exercises = useLiveQuery(async () => new Map((await all('exercises')).map((e) => [e.id, e])), []);
   const [adding, setAdding] = useState<PlanDay | null>(null);
   const [shareMsg, setShareMsg] = useState('');
+  const [params, setParams] = useSearchParams();
+  const gymId = params.get('gym') ?? '';
+  const gyms = useLiveQuery(myGyms, []);
+  const gymMachines = useLiveQuery(async () => (gymId ? (await db.gymMachines.where('gymId').equals(gymId).toArray()).filter(alive) : []), [gymId]);
+  const gymName = new Map(gyms?.map((g) => [g.id, g.name]));
+  const setGym = (g: string) => {
+    const next = new URLSearchParams(params);
+    if (g) next.set('gym', g);
+    else next.delete('gym');
+    next.delete('day');
+    setParams(next, { replace: true });
+  };
+  // aus dem Training kommend: zum Tag scrollen
+  const focusDay = params.get('day');
+  useEffect(() => {
+    if (focusDay && days?.length) document.getElementById(`day-${focusDay}`)?.scrollIntoView({ block: 'start' });
+  }, [focusDay, days?.length]);
 
   if (!alive(plan)) return null;
 
@@ -62,11 +81,41 @@ export function PlanPage() {
         }
       />
       {shareMsg && <p className="-mt-3 mb-3 text-sm text-emerald-400">{shareMsg}</p>}
+      {gyms && gyms.length > 1 && (
+        <div className="mb-3">
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+            {[{ id: '', name: 'Alle Gyms' }, ...gyms].map((g) => (
+              <button
+                key={g.id}
+                type="button"
+                onClick={() => setGym(g.id)}
+                className={`chip shrink-0 px-3 py-1.5 text-sm ${gymId === g.id ? 'bg-white text-black' : 'bg-slate-800 text-slate-300'}`}
+              >
+                {g.name}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-xs text-slate-500">
+            {gymId
+              ? `So sieht dein Plan in ${gymName.get(gymId) ?? 'diesem Gym'} aus. Mit dem Auge blendest du Übungen nur hier aus.`
+              : 'Wähle ein Gym, um Übungen nur dort auszublenden.'}
+          </p>
+        </div>
+      )}
       <div className="space-y-4">
         {days?.map((d) => {
           const list = pdes?.filter((p) => p.planDayId === d.id) ?? [];
+          const missing = gymId
+            ? list.filter(
+                (p) =>
+                  !p.skipGyms?.includes(gymId) &&
+                  !p.slotId &&
+                  !exercises?.get(p.exerciseId)?.freeWeight &&
+                  !gymMachines?.some((m) => m.exerciseId === p.exerciseId),
+              )
+            : [];
           return (
-            <Card key={d.id}>
+            <Card key={d.id} id={`day-${d.id}`} className="scroll-mt-4">
               <div className="mb-2 flex items-center justify-between">
                 <h2 className="font-semibold">{d.name}</h2>
                 <button
@@ -82,6 +131,18 @@ export function PlanPage() {
                   Umbenennen
                 </button>
               </div>
+              {missing.length > 0 && (
+                <button
+                  type="button"
+                  className="mb-2 w-full rounded-xl bg-amber-500/10 px-3 py-2 text-left text-xs text-amber-200"
+                  onClick={async () => {
+                    for (const p of missing) await patch('planDayExercises', p.id, { skipGyms: [...(p.skipGyms ?? []), gymId] });
+                  }}
+                >
+                  {missing.length} Übung{missing.length === 1 ? '' : 'en'} ohne Gerät in {gymName.get(gymId)} –{' '}
+                  <span className="font-semibold underline underline-offset-2">alle hier ausblenden</span>
+                </button>
+              )}
               <ul className="divide-y divide-slate-800">
                 {list.map((p, i) => (
                   <PdeRow
@@ -98,6 +159,11 @@ export function PlanPage() {
                     }
                     prev={list[i - 1]}
                     muscle={exercises?.get(p.exerciseId)?.muscleGroup}
+                    gym={gymId ? { id: gymId, name: gymName.get(gymId) ?? 'diesem Gym' } : undefined}
+                    noMachine={
+                      !!gymId && !p.slotId && !exercises?.get(p.exerciseId)?.freeWeight && !gymMachines?.some((m) => m.exerciseId === p.exerciseId)
+                    }
+                    skippedIn={(p.skipGyms ?? []).map((g) => gymName.get(g)).filter((n): n is string => !!n)}
                   />
                 ))}
               </ul>
@@ -124,20 +190,62 @@ export function PlanPage() {
   );
 }
 
-function PdeRow({ pde, name, hint, prev, muscle }: { pde: PlanDayExercise; name: string; hint?: string; prev?: PlanDayExercise; muscle?: string }) {
+function PdeRow({
+  pde,
+  name,
+  hint,
+  prev,
+  muscle,
+  gym,
+  noMachine,
+  skippedIn,
+}: {
+  pde: PlanDayExercise;
+  name: string;
+  hint?: string;
+  prev?: PlanDayExercise;
+  muscle?: string;
+  /** gewähltes Gym (Filter) */
+  gym?: { id: string; name: string };
+  noMachine?: boolean;
+  skippedIn: string[];
+}) {
   const [edit, setEdit] = useState(false);
   const [v, setV] = useState({ sets: pde.sets, repMin: pde.repMin, repMax: pde.repMax });
+  const off = !!gym && !!pde.skipGyms?.includes(gym.id);
+  const toggleGym = () =>
+    gym &&
+    patch('planDayExercises', pde.id, {
+      skipGyms: off ? (pde.skipGyms ?? []).filter((g) => g !== gym.id) : [...(pde.skipGyms ?? []), gym.id],
+    });
   return (
     <li className="py-2">
       <div className="flex items-center gap-2">
-        <MuscleTile muscle={muscle} exerciseId={pde.exerciseId} />
-        <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setEdit((e) => !e)}>
-          {name}
+        <MuscleTile muscle={muscle} exerciseId={pde.exerciseId} className={off ? 'opacity-40' : ''} />
+        <button type="button" className={`min-w-0 flex-1 text-left ${off ? 'opacity-50' : ''}`} onClick={() => setEdit((e) => !e)}>
+          <ExerciseName name={name} className={off ? 'line-through' : ''} />
           <span className="block text-xs text-slate-500">
             {pde.sets} × {pde.repMin}–{pde.repMax}
             {hint && ` · ${hint}`}
           </span>
+          {off ? (
+            <span className="block text-xs text-slate-400">in {gym!.name} ausgeblendet</span>
+          ) : noMachine ? (
+            <span className="block text-xs text-amber-300">kein Gerät in {gym!.name} erfasst</span>
+          ) : (
+            !gym && skippedIn.length > 0 && <span className="block text-xs text-slate-500">nicht in: {skippedIn.join(', ')}</span>
+          )}
         </button>
+        {gym && (
+          <button
+            type="button"
+            aria-label={off ? `In ${gym.name} wieder zeigen` : `In ${gym.name} ausblenden`}
+            className={`px-2 ${off ? 'text-slate-500' : 'text-white'}`}
+            onClick={toggleGym}
+          >
+            {off ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        )}
         {prev && (
           <button
             type="button"

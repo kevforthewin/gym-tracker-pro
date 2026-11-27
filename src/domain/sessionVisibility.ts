@@ -20,13 +20,16 @@ export interface VisUnit {
   baseExerciseId?: string;
   /** Seite bei einseitigen Übungen – Links/Rechts-Paare sind keine Alternativen zueinander */
   side?: 'links' | 'rechts';
+  /** Im Plan für dieses Gym ausgeblendet */
+  gymExcluded?: boolean;
 }
 
 export type HiddenReason =
   | { type: 'skipped' }
   | { type: 'sibling'; of: string }
   | { type: 'duplicate'; of: string }
-  | { type: 'noMachine' };
+  | { type: 'noMachine' }
+  | { type: 'gymExcluded' };
 
 /** Bewegungsgruppen einer Übung (über die Alternativen der Plätze) */
 function groupsOf(u: VisUnit): Set<string> {
@@ -45,6 +48,10 @@ export function hiddenUnits(units: VisUnit[], skipped: string[] = [], shown: str
       continue;
     }
     if (shown.includes(u.key)) continue;
+    if (u.gymExcluded) {
+      out.set(u.key, { type: 'gymExcluded' });
+      continue;
+    }
     const g = groupsOf(u);
     const sibling = done.find((d) => d.key !== u.key && [...groupsOf(d)].some((x) => g.has(x)));
     if (sibling) {
@@ -52,7 +59,7 @@ export function hiddenUnits(units: VisUnit[], skipped: string[] = [], shown: str
       continue;
     }
     // exakt gleiche Übung schon weiter oben (z. B. aus einem Plan für mehrere Gyms) → nur einmal zeigen
-    const first = units.find((x) => x.exerciseId === u.exerciseId && x.side === u.side && !u.slotId);
+    const first = units.find((x) => x.exerciseId === u.exerciseId && x.side === u.side && !u.slotId && !x.gymExcluded);
     if (first && first.key !== u.key && !skipped.includes(first.key)) {
       out.set(u.key, { type: 'duplicate', of: first.name });
       continue;
@@ -69,4 +76,6 @@ export const REASON_TEXT = (r: HiddenReason) =>
       ? `Alternative zu ${r.of}`
       : r.type === 'duplicate'
         ? 'gleiche Übung steht schon oben'
-        : 'kein Gerät in diesem Gym';
+        : r.type === 'gymExcluded'
+          ? 'in diesem Gym nicht im Plan'
+          : 'kein Gerät in diesem Gym';

@@ -52,3 +52,14 @@ describe('Übungen ausblenden', () => {
     expect(h.has('Butterfly 1')).toBe(false);
   });
 });
+
+describe('Plan je Gym', () => {
+  it('blendet im Gym ausgeschlossene Übungen aus, zurückgeholt nur für heute', () => {
+    const x = u('a', 'x', { gymExcluded: true });
+    expect(hiddenUnits([x]).get('a')).toEqual({ type: 'gymExcluded' });
+    expect(hiddenUnits([x], [], ['a']).has('a')).toBe(false);
+    expect(hiddenUnits([{ ...x, workSets: 2 }]).has('a')).toBe(false);
+    // die zweite gleiche Übung rückt nach, wenn die erste im Gym ausgeblendet ist
+    expect(hiddenUnits([x, u('b', 'x', { hasMachineInGym: true })]).has('b')).toBe(false);
+  });
+});

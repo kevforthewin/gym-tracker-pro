@@ -126,6 +126,8 @@ export interface PlanDayExercise extends Owned {
   targetDistanceM?: number;
   /** Bewegungsplatz aus einer Vorlage (z. B. „horizontal-push“) – Übung wird je Gym aufgelöst */
   slotId?: string;
+  /** Gyms, in denen diese Übung nicht angezeigt wird (z. B. weil es dort kein passendes Gerät gibt) */
+  skipGyms?: string[];
 }
 
 export interface Session extends Owned {

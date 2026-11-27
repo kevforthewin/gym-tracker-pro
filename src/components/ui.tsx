@@ -38,8 +38,12 @@ export function IconButton({ label, children, onClick, className = '' }: { label
   );
 }
 
-export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-card bg-slate-900 p-4 ${className}`}>{children}</div>;
+export function Card({ children, className = '', id }: { children: ReactNode; className?: string; id?: string }) {
+  return (
+    <div id={id} className={`rounded-card bg-slate-900 p-4 ${className}`}>
+      {children}
+    </div>
+  );
 }
 
 /** Großer Seitentitel im iOS-Stil; mit `back` kompakte Kopfzeile mit Zurück-Knopf. */

@@ -167,6 +167,14 @@ export function HomePage() {
                 </option>
               ))}
             </select>
+            {dayId && days?.find((d) => d.id === dayId) && (
+              <Link
+                to={`/profile/plan/${days.find((d) => d.id === dayId)!.planId}?day=${dayId}${validGym ? `&gym=${validGym}` : ''}`}
+                className="mt-1.5 inline-block text-xs font-semibold text-slate-400"
+              >
+                Übungen in diesem Plan bearbeiten
+              </Link>
+            )}
           </label>
           <Button className="w-full" disabled={!validGym} onClick={start}>
             Krafttraining starten

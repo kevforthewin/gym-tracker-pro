@@ -39,6 +39,8 @@ interface Props {
   onRemove?: () => void;
   /** „Heute nicht“: Übung für dieses Training ausblenden */
   onSkip?: () => void;
+  /** Plan dauerhaft anpassen (nicht nur dieses Training) */
+  plan?: { gymName: string; dayName: string; onExcludeGym?: () => void; onRemove?: () => void; onAdd?: () => void };
   /** Platz aus einer Vorlage: Übung kann gegen eine Alternative getauscht werden (solange noch kein Satz gespeichert ist) */
   slot?: { label: string; options: { exercise: Exercise; inGym: boolean }[]; onSwap: (exerciseId: string) => void };
 }
@@ -46,7 +48,7 @@ interface Props {
 const scoreOf = (type: Exercise['type'], s: WorkSet) =>
   type === 'time_distance' ? (s.distanceM ?? 0) || (s.durationSec ?? 0) : type === 'bodyweight' && !s.weightKg ? (s.reps ?? 0) : e1rm(s.weightKg ?? 0, s.reps ?? 0);
 
-export function ExerciseCard({ sessionId, exercise, machine, alternatives, prescription, sets, onPickMachine, onMove, onRemove, slot, deload, onSkip }: Props) {
+export function ExerciseCard({ sessionId, exercise, machine, alternatives, prescription, sets, onPickMachine, onMove, onRemove, slot, deload, onSkip, plan }: Props) {
   const nav = useNavigate();
   const needsMachine = !machine && !exercise.freeWeight && alternatives.length > 0;
   const info = useLiveQuery(
@@ -245,6 +247,50 @@ export function ExerciseCard({ sessionId, exercise, machine, alternatives, presc
             >
               Aus diesem Training entfernen
             </Button>
+          )}
+          {plan && (plan.onExcludeGym || plan.onRemove || plan.onAdd) && (
+            <section className="pt-2">
+              <h3 className="label">Trainingsplan „{plan.dayName}“ – dauerhaft</h3>
+              <div className="space-y-2">
+                {plan.onAdd && (
+                  <Button
+                    variant="secondary"
+                    className="w-full"
+                    onClick={() => {
+                      setMenu(false);
+                      plan.onAdd!();
+                    }}
+                  >
+                    Zum Plan hinzufügen
+                  </Button>
+                )}
+                {plan.onExcludeGym && (
+                  <Button
+                    variant="secondary"
+                    className="w-full"
+                    onClick={() => {
+                      setMenu(false);
+                      plan.onExcludeGym!();
+                    }}
+                  >
+                    In {plan.gymName} nicht mehr zeigen
+                  </Button>
+                )}
+                {plan.onRemove && (
+                  <Button
+                    variant="ghost"
+                    className="w-full text-red-400"
+                    onClick={() => {
+                      if (!confirm(`„${exercise.name}“ aus dem Plan „${plan.dayName}“ entfernen – für alle Gyms?`)) return;
+                      setMenu(false);
+                      plan.onRemove!();
+                    }}
+                  >
+                    Aus dem Plan entfernen (alle Gyms)
+                  </Button>
+                )}
+              </div>
+            </section>
           )}
         </div>
       </Modal>

@@ -31,7 +31,7 @@ npm run build
 
 1. Auf [supabase.com](https://supabase.com) ein Projekt anlegen (Region: Frankfurt).
 2. Im Dashboard **SQL Editor** → Inhalt von `supabase/migrations/0001_init.sql` einfügen → *Run*, danach `0005_model_details.sql` und `0008_gym_details.sql`.
-   Danach dasselbe mit `0002_seed_catalog.sql` , `0003_feedback.sql`, `0004_cardio_session.sql`, `0006_plan_slots.sql`, `0007_deload.sql` und `0009_session_visibility.sql`.
+   Danach dasselbe mit `0002_seed_catalog.sql` , `0003_feedback.sql`, `0004_cardio_session.sql`, `0006_plan_slots.sql`, `0007_deload.sql` `0009_session_visibility.sql` und `0010_plan_skip_gyms.sql`.
 3. **Authentication → Sign In / Providers → Email** aktiv lassen. Unter **Authentication → Emails → Magic Link**
    im Text `{{ .Token }}` ergänzen, damit die Mail den 6-stelligen Code enthält (wichtig für die installierte iPhone-App).
 4. **Authentication → URL Configuration:** *Site URL* = `https://<github-name>.github.io/gym-tracker-pro/`.

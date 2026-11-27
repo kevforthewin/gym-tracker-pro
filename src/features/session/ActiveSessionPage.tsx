@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ExerciseName } from '../../components/ExerciseName';
-import { ChevronDown, EyeOff } from 'lucide-react';
+import { ChevronDown, EyeOff, ListChecks } from 'lucide-react';
 import { hiddenUnits, REASON_TEXT } from '../../domain/sessionVisibility';
 import { matchCatalog } from '../../import/legacyBackup';
 import { splitSide } from '../../domain/exerciseDefaults';
@@ -9,7 +9,7 @@ import { MapPin } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, EmptyState, Modal, PageHeader } from '../../components/ui';
-import { alive, all, db, patch, remove } from '../../local/db';
+import { alive, all, db, patch, remove, save } from '../../local/db';
 import { lastMachineFor, prescriptionOf } from '../../local/queries';
 import { resolveSlotInGym } from '../../local/plans';
 import { slotById } from '../../domain/slots';
@@ -175,6 +175,7 @@ export function ActiveSessionPage() {
       // eigene Übungen (z. B. aus dem Import) über den Namen einer Katalog-Übung zuordnen
       baseExerciseId: u.exercise.createdBy ? matchCatalog(u.exercise.name) : undefined,
       side: splitSide(u.exercise.name).side,
+      gymExcluded: !!u.pde?.skipGyms?.includes(session.gymId),
     })),
     session.skipped,
     session.shown,
@@ -187,6 +188,28 @@ export function ActiveSessionPage() {
       skipped: (session.skipped ?? []).filter((k) => k !== u.key),
       shown: [...(session.shown ?? []).filter((k) => k !== u.key), u.key],
     });
+
+  // Plan dauerhaft anpassen
+  const excludeInGym = async (u: Unit) => {
+    if (!u.pde) return;
+    await patch('planDayExercises', u.pde.id, { skipGyms: [...(u.pde.skipGyms ?? []).filter((g) => g !== session.gymId), session.gymId] });
+    await patch('sessions', session.id, { shown: (session.shown ?? []).filter((k) => k !== u.key) });
+  };
+  const removeFromPlan = (u: Unit) => u.pde && remove('planDayExercises', u.pde.id);
+  const addToPlan = async (u: Unit) => {
+    if (!day) return;
+    const row = await save('planDayExercises', {
+      planDayId: day.id,
+      exerciseId: u.exercise.id,
+      order: data.pdes.length,
+      sets: u.exercise.type === 'time_distance' ? 1 : 3,
+      repMin: 8,
+      repMax: 12,
+    });
+    const nextMf = { ...mf, [row.id]: mf[u.key] ?? '' };
+    delete nextMf[u.key];
+    await patch('sessions', session.id, { order: units.map((x) => (x.key === u.key ? row.id : x.key)), machineFor: nextMf });
+  };
 
   const work = sets.filter((s) => !s.isWarmup);
   const doneSets = work.length;
@@ -235,6 +258,17 @@ export function ActiveSessionPage() {
             onPickMachine={() => setPicking(u)}
             onMove={(d) => move(u, d)}
             onRemove={u.pde ? undefined : () => setOrder(units.filter((x) => x.key !== u.key).map((x) => x.key))}
+            plan={
+              day
+                ? {
+                    gymName: gym?.name ?? 'diesem Gym',
+                    dayName: day.name,
+                    onExcludeGym: u.pde ? () => excludeInGym(u) : undefined,
+                    onRemove: u.pde ? () => removeFromPlan(u) : undefined,
+                    onAdd: u.pde ? undefined : () => addToPlan(u),
+                  }
+                : undefined
+            }
             slot={
               u.pde?.slotId && setsOf(u).length === 0
                 ? {
@@ -252,6 +286,15 @@ export function ActiveSessionPage() {
       </div>
 
       {hiddenList.length > 0 && <HiddenUnits units={hiddenList} reason={(u) => REASON_TEXT(hidden.get(u.key)!)} onRestore={restore} />}
+      {day && (
+        <button
+          type="button"
+          className="mt-3 flex w-full items-center justify-center gap-1.5 py-2 text-sm font-semibold text-slate-400"
+          onClick={() => nav(`/profile/plan/${day.planId}?gym=${session.gymId}&day=${day.id}`)}
+        >
+          <ListChecks size={16} /> Plan „{day.name}“ für {gym?.name ?? 'dieses Gym'} bearbeiten
+        </button>
+      )}
 
       {data.cardio.length > 0 && (
         <div className="mt-3 space-y-2">
