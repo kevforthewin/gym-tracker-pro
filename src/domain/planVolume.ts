@@ -32,8 +32,9 @@ export const MUSCLE_ORDER = [
 ];
 
 /** Synonyme zusammenführen */
-const CANON: Record<string, string> = { Beine: 'Quadrizeps', Rotatorenmanschette: 'Hintere Schulter' };
-const canon = (m: string) => CANON[m] ?? m;
+const CANON: Record<string, string> = { Beine: 'Quadrizeps', Rotatorenmanschette: 'Hintere Schulter', Core: 'Bauch' };
+export const canonMuscle = (m: string) => CANON[m] ?? m;
+const canon = canonMuscle;
 
 export interface VolumeInput {
   /** Trainingstage des Plans mit ihren Übungen */
