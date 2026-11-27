@@ -4,12 +4,14 @@ import { registerSW } from 'virtual:pwa-register';
 import App from './App';
 import { seedCatalog } from './local/db';
 import { dedupePlanEntries } from './local/plans';
+import { repairMultiPec } from './local/repairs';
 import './styles/index.css';
 
 registerSW({ immediate: true });
 navigator.storage?.persist?.().catch(() => undefined);
 
 seedCatalog()
+  .then(() => repairMultiPec())
   .then(() => dedupePlanEntries())
   .catch(() => undefined)
   .finally(() =>

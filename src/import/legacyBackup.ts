@@ -83,7 +83,8 @@ const RULES: [string[], string][] = [
   [['bankdrücken'], 'bench-press'],
   [['low-to-high'], 'cable-fly'],
   [['cable', 'fly'], 'cable-fly'],
-  [['multi', 'pec'], 'butterfly'],
+  // Multi Pec wird meist als Seitheben-Maschine genutzt (Arme seitlich, geführte Bahn)
+  [['multi', 'pec'], 'lateral-raise-machine'],
   [['pec', 'fly'], 'butterfly'],
   [['butterfly'], 'butterfly'],
   [['schulterdrücken', 'kurzhantel'], 'db-shoulder-press'],

@@ -50,6 +50,8 @@ describe('Import aus der alten App', () => {
   it('ordnet Übungen dem Katalog zu', () => {
     expect(matchCatalog('Latzug alte Maschine')).toBe('lat-pulldown');
     expect(matchCatalog('Reverse Butterfly')).toBe('reverse-fly');
+    expect(matchCatalog('Multi Pec')).toBe('lateral-raise-machine');
+    expect(matchCatalog('Pec Fly')).toBe('butterfly');
     expect(matchCatalog('Butterfly Matrix')).toBe('butterfly');
     expect(matchCatalog('Schrägbankdrücken Kurzhantel 30°')).toBe('db-incline-press');
     expect(matchCatalog('Trizeps Overhead Kabel')).toBe('overhead-triceps');
