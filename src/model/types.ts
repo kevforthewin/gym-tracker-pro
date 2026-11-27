@@ -137,6 +137,10 @@ export interface Session extends Owned {
   machineFor?: Record<string, string>;
   /** Plan-Übung mit Bewegungsplatz → in diesem Training gewählte Übung */
   exerciseFor?: Record<string, string>;
+  /** „Heute nicht“ ausgeblendete Übungen (Einheiten-Schlüssel) */
+  skipped?: string[];
+  /** Automatisch ausgeblendete, aber zurückgeholte Übungen */
+  shown?: string[];
   /** In einer Deload-Woche trainiert (leichter; zählt nicht für die Progression) */
   deload?: boolean;
   /** Eigene Reihenfolge der Plan-Übungen in diesem Training */

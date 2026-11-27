@@ -1,4 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, EyeOff } from 'lucide-react';
+import { hiddenUnits, REASON_TEXT } from '../../domain/sessionVisibility';
+import { matchCatalog } from '../../import/legacyBackup';
+import { splitSide } from '../../domain/exerciseDefaults';
+import { MuscleTile } from '../../components/MuscleIcon';
 import { MapPin } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -157,11 +162,36 @@ export function ActiveSessionPage() {
     nav('/', { replace: true });
   };
 
+  const hidden = hiddenUnits(
+    units.map((u) => ({
+      key: u.key,
+      exerciseId: u.exercise.id,
+      name: u.exercise.name,
+      slotId: u.pde?.slotId,
+      freeWeight: u.exercise.freeWeight,
+      hasMachineInGym: machines.some((m) => m.exerciseId === u.exercise.id),
+      workSets: setsOf(u).filter((s) => !s.isWarmup).length,
+      // eigene Übungen (z. B. aus dem Import) über den Namen einer Katalog-Übung zuordnen
+      baseExerciseId: u.exercise.createdBy ? matchCatalog(u.exercise.name) : undefined,
+      side: splitSide(u.exercise.name).side,
+    })),
+    session.skipped,
+    session.shown,
+  );
+  const visible = units.filter((u) => !hidden.has(u.key));
+  const hiddenList = units.filter((u) => hidden.has(u.key));
+  const skip = (u: Unit) => patch('sessions', session.id, { skipped: [...(session.skipped ?? []).filter((k) => k !== u.key), u.key] });
+  const restore = (u: Unit) =>
+    patch('sessions', session.id, {
+      skipped: (session.skipped ?? []).filter((k) => k !== u.key),
+      shown: [...(session.shown ?? []).filter((k) => k !== u.key), u.key],
+    });
+
   const work = sets.filter((s) => !s.isWarmup);
   const doneSets = work.length;
   const plannedSets = Math.max(
     doneSets,
-    units.reduce((n, u) => n + Math.max(prescriptionOf(u.pde).sets, setsOf(u).filter((s) => !s.isWarmup).length), 0),
+    visible.reduce((n, u) => n + Math.max(prescriptionOf(u.pde).sets, setsOf(u).filter((s) => !s.isWarmup).length), 0),
   );
   const volume = Math.round(work.filter((s) => !s.excluded).reduce((a, s) => a + (s.weightKg ?? 0) * (s.reps ?? 0), 0));
 
@@ -189,9 +219,10 @@ export function ActiveSessionPage() {
       )}
 
       <div className="space-y-3">
-        {units.map((u) => (
+        {visible.map((u) => (
           <ExerciseCard
             key={u.key}
+            onSkip={() => skip(u)}
             deload={session.deload}
             sessionId={session.id}
             gymId={session.gymId}
@@ -218,6 +249,8 @@ export function ActiveSessionPage() {
           />
         ))}
       </div>
+
+      {hiddenList.length > 0 && <HiddenUnits units={hiddenList} reason={(u) => REASON_TEXT(hidden.get(u.key)!)} onRestore={restore} />}
 
       {data.cardio.length > 0 && (
         <div className="mt-3 space-y-2">
@@ -268,6 +301,37 @@ export function ActiveSessionPage() {
       )}
       <AddExerciseModal open={addingExercise} onClose={() => setAddingExercise(false)} machines={machines} exercises={data.exercises} onAdd={addExercise} />
     </>
+  );
+}
+
+/** Eingeklappte Liste der ausgeblendeten Übungen mit „Zurückholen“ */
+function HiddenUnits({ units, reason, onRestore }: { units: Unit[]; reason: (u: Unit) => string; onRestore: (u: Unit) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="mt-4 rounded-card bg-slate-900">
+      <button type="button" className="flex w-full items-center justify-between px-4 py-3 text-left" onClick={() => setOpen(!open)}>
+        <span className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+          <EyeOff size={16} className="text-slate-500" /> Ausgeblendet ({units.length})
+        </span>
+        <ChevronDown size={18} className={`text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <ul className="divide-y divide-slate-800 border-t border-slate-800">
+          {units.map((u) => (
+            <li key={u.key} className="flex items-center gap-3 px-4 py-2.5">
+              <MuscleTile muscle={u.exercise.muscleGroup} exerciseId={u.exercise.id} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{u.exercise.name}</span>
+                <span className="block text-xs text-slate-500">{reason(u)}</span>
+              </span>
+              <button type="button" className="shrink-0 text-sm font-semibold text-white" onClick={() => onRestore(u)}>
+                Zurückholen
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

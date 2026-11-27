@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { applyDeload } from '../../domain/deload';
-import { ArrowDown, ArrowUp, ChevronRight, LineChart, MoreHorizontal, StickyNote } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronRight, LineChart, MoreHorizontal, StickyNote, X } from 'lucide-react';
 import { MuscleTile } from '../../components/MuscleIcon';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate } from 'react-router-dom';
@@ -36,6 +36,8 @@ interface Props {
   onPickMachine: () => void;
   onMove?: (dir: 'up' | 'down') => void;
   onRemove?: () => void;
+  /** „Heute nicht“: Übung für dieses Training ausblenden */
+  onSkip?: () => void;
   /** Platz aus einer Vorlage: Übung kann gegen eine Alternative getauscht werden (solange noch kein Satz gespeichert ist) */
   slot?: { label: string; options: { exercise: Exercise; inGym: boolean }[]; onSwap: (exerciseId: string) => void };
 }
@@ -43,7 +45,7 @@ interface Props {
 const scoreOf = (type: Exercise['type'], s: WorkSet) =>
   type === 'time_distance' ? (s.distanceM ?? 0) || (s.durationSec ?? 0) : type === 'bodyweight' && !s.weightKg ? (s.reps ?? 0) : e1rm(s.weightKg ?? 0, s.reps ?? 0);
 
-export function ExerciseCard({ sessionId, exercise, machine, alternatives, prescription, sets, onPickMachine, onMove, onRemove, slot, deload }: Props) {
+export function ExerciseCard({ sessionId, exercise, machine, alternatives, prescription, sets, onPickMachine, onMove, onRemove, slot, deload, onSkip }: Props) {
   const nav = useNavigate();
   const needsMachine = !machine && !exercise.freeWeight && alternatives.length > 0;
   const info = useLiveQuery(
@@ -92,6 +94,11 @@ export function ExerciseCard({ sessionId, exercise, machine, alternatives, presc
         <IconButton label="Optionen" onClick={() => setMenu(true)}>
           <MoreHorizontal size={18} strokeWidth={2} />
         </IconButton>
+        {onSkip && sets.length === 0 && (
+          <IconButton label="Heute nicht" onClick={onSkip}>
+            <X size={18} strokeWidth={2} />
+          </IconButton>
+        )}
       </div>
 
       {/* Geräte-Kachel */}
