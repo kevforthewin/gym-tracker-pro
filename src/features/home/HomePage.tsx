@@ -5,7 +5,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button, Card, EmptyState, PageHeader } from '../../components/ui';
 import { all, getMeta, save, setMeta } from '../../local/db';
 import { myGyms } from '../../local/queries';
-import { fmtDate } from '../../domain/units';
 import { weekStart } from '../../domain/insights';
 import { isoOf } from '../../domain/dashboard';
 import { CardioSheet } from '../cardio/CardioSheet';
@@ -184,33 +183,12 @@ export function HomePage() {
           </Button>
           {!days?.length && (
             <p className="text-xs text-slate-500">
-              Tipp: Unter <Link to="/profile" className="text-white underline">Profil → Pläne</Link> legst du Trainingstage an (z. B. Push/Pull/Legs).
+              Tipp: Im Tab <Link to="/plan" className="text-white underline">Plan</Link> legst du Trainingstage an (z. B. Push/Pull/Legs).
             </p>
           )}
         </Card>
       )}
 
-      {!!sessions?.length && (
-        <section className="mt-6">
-          <div className="mb-2 flex items-baseline justify-between">
-            <h2 className="text-xl font-bold">Zuletzt</h2>
-            <Link to="/history" className="text-sm text-slate-400">
-              Alle ›
-            </Link>
-          </div>
-          <Card className="divide-y divide-slate-800 p-0">
-            {sessions.slice(0, 3).map((s) => (
-              <Link key={s.id} to={`/session/${s.id}${s.finishedAt ? '/summary' : ''}`} className="flex justify-between px-4 py-3">
-                <span>
-                  {names?.day.get(s.planDayId ?? '') ?? 'Freies Training'}
-                  <span className="block text-xs text-slate-500">{names?.gym.get(s.gymId)}</span>
-                </span>
-                <span className="text-slate-500">{fmtDate(s.startedAt)}</span>
-              </Link>
-            ))}
-          </Card>
-        </section>
-      )}
       <CardioSheet open={cardioOpen} onClose={() => setCardioOpen(false)} />
     </>
   );
