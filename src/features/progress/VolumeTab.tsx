@@ -14,6 +14,7 @@ import type { ProgressData } from './progressData';
 
 const WEEKS = 6;
 const SCALE_MAX = 24;
+const DAY = 86400000;
 
 const toneOf = (muscle: string, v: number) => {
   const { min, max } = rangeOf(muscle);
@@ -22,7 +23,11 @@ const toneOf = (muscle: string, v: number) => {
 
 export function VolumeTab({ data }: { data: ProgressData }) {
   const thisWeek = weekStart(Date.now());
-  /** Zeitraum: 1–4 Kalenderwochen. Werte = Ø Sätze pro Woche, damit sie mit der Empfehlung (pro Woche) vergleichbar bleiben. */
+  /**
+   * Zeitraum: „Woche“ = Kalenderwoche (zum Blättern durch KWs).
+   * 14/21/28 Tage = rollierend bis heute, angezeigt als Ø Sätze pro 7 Tage – so bleibt der Wert mit der
+   * Empfehlung (pro Woche) vergleichbar, ist immer aktuell und springt nicht am Wochenanfang.
+   */
   const [span, setSpan] = useState<number>(() => {
     try {
       return Number(sessionStorage.getItem('volumeSpan')) || 1;
@@ -30,16 +35,24 @@ export function VolumeTab({ data }: { data: ProgressData }) {
       return 1;
     }
   });
-  // Ende des Zeitraums (Wochen vor der aktuellen). Mehrere Wochen: nur abgeschlossene – die laufende Woche würde den Schnitt drücken.
-  const minEnd = span > 1 ? 1 : 0;
-  const [endOffset, setEndOffset] = useState(() => (!data.volume.get(thisWeek)?.size && data.volume.get(addWeeks(thisWeek, -1))?.size ? 1 : 0));
-  const end = Math.max(endOffset, minEnd);
+  const rolling = span > 1;
+  const days = span * 7;
+  // Kalenderwoche: Wochenanfang ohne Training → letzte Woche zeigen
+  const [weekOffset, setWeekOffset] = useState(() => (!data.volume.get(thisWeek)?.size && data.volume.get(addWeeks(thisWeek, -1))?.size ? 1 : 0));
+  // rollierend: wie viele Zeiträume zurück
+  const [back, setBack] = useState(0);
   const [selected, setSelected] = useState<string>();
-  const endWeek = addWeeks(thisWeek, -end);
-  const range = useMemo(() => Array.from({ length: span }, (_, i) => addWeeks(endWeek, -(span - 1 - i))), [endWeek, span]);
-  const weeks = useMemo(() => Array.from({ length: Math.max(WEEKS, span) }, (_, i) => addWeeks(endWeek, -(Math.max(WEEKS, span) - 1 - i))), [endWeek, span]);
+  const todayEnd = useMemo(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime();
+  }, []);
+  const to = rolling ? todayEnd - back * days * DAY : addWeeks(thisWeek, -weekOffset + 1);
+  const from = rolling ? to - days * DAY : addWeeks(thisWeek, -weekOffset);
+  const lastWeek = weekStart(to - 1);
+  const weeks = useMemo(() => Array.from({ length: WEEKS }, (_, i) => addWeeks(lastWeek, -(WEEKS - 1 - i))), [lastWeek]);
   const chooseSpan = (n: number) => {
     setSpan(n);
+    setBack(0);
     try {
       sessionStorage.setItem('volumeSpan', String(n));
     } catch {
@@ -47,15 +60,18 @@ export function VolumeTab({ data }: { data: ProgressData }) {
     }
   };
 
+  const inWindow = useMemo(() => data.volumeEntries.filter((e) => e.ts >= from && e.ts < to), [data, from, to]);
   if (!data.volume.size) return <EmptyState title="Noch keine Trainingsdaten." />;
   const round = (x: number) => Math.round(x * 2) / 2;
   const valWeek = (m: string, w: number) => round(data.volume.get(w)?.get(m) ?? 0);
-  /** Ø Sätze pro Woche im Zeitraum */
-  const val = (m: string) => round(range.reduce((a, w) => a + (data.volume.get(w)?.get(m) ?? 0), 0) / span);
-  const total = range.reduce((a, w) => a + [...(data.volume.get(w)?.values() ?? [])].reduce((x, y) => x + y, 0), 0);
-  const trainedWeeks = range.filter((w) => data.volume.get(w)?.size).length;
-  const muscles = MUSCLE_ORDER.filter((m) => weeks.some((w) => valWeek(m, w) > 0));
-  const inRange = (w: number) => range.includes(w);
+  const perWeek = rolling ? span : 1;
+  /** Sätze im Zeitraum – bei rollierenden Zeiträumen als Ø pro 7 Tage */
+  const val = (m: string) => round(inWindow.reduce((a, e) => a + (e.muscle === m ? e.v : 0), 0) / perWeek);
+  const total = inWindow.reduce((a, e) => a + e.v, 0);
+  const sessionsIn = data.sessions.filter((x) => x.startedAt >= from && x.startedAt < to).length;
+  const muscles = MUSCLE_ORDER.filter((m) => weeks.some((w) => valWeek(m, w) > 0) || val(m) > 0);
+  /** KW überschneidet sich mit dem Zeitraum */
+  const inRange = (w: number) => w < to && addWeeks(w, 1) > from;
   const pct = (x: number) => `${Math.min(100, (x / SCALE_MAX) * 100)}%`;
 
   return (
@@ -70,34 +86,39 @@ export function VolumeTab({ data }: { data: ProgressData }) {
               onClick={() => chooseSpan(n)}
               className={`flex-1 rounded-full py-1.5 text-sm font-semibold ${span === n ? 'bg-slate-600 text-white' : 'text-slate-400'}`}
             >
-              {n === 1 ? '1 Woche' : `${n} Wo.`}
+              {n === 1 ? 'Woche' : `${n * 7} Tage`}
             </button>
           ))}
         </div>
         <div className="flex items-center justify-between">
-          <button type="button" className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800" onClick={() => setEndOffset(end + span)} aria-label="Früherer Zeitraum">
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800"
+            onClick={() => (rolling ? setBack(back + 1) : setWeekOffset(weekOffset + 1))}
+            aria-label="Früherer Zeitraum"
+          >
             <ChevronLeft size={18} />
           </button>
           <div className="text-center">
             <h2 className="font-bold">
-              {span === 1 ? `KW ${isoWeek(endWeek)}` : `KW ${isoWeek(range[0])}–${isoWeek(endWeek)}`}{' '}
-              {end === minEnd && <span className="font-normal text-slate-500">· {span === 1 ? 'aktuell' : 'zuletzt'}</span>}
+              {rolling ? (back === 0 ? `Letzte ${days} Tage` : `${days} Tage bis ${fmtShortDate(to - 1)}`) : `KW ${isoWeek(from)}`}
+              {!rolling && weekOffset === 0 && <span className="font-normal text-slate-500"> · aktuell</span>}
             </h2>
             <p className="text-xs text-slate-500">
-              {fmtShortDate(range[0])} – {fmtShortDate(addWeeks(endWeek, 1) - 86400000)} ·{' '}
-              {span === 1 ? `${fmtNumber(total, 1)} Sätze` : `Ø ${fmtNumber(total / span, 1)} Sätze pro Woche`}
+              {fmtShortDate(from)} – {fmtShortDate(to - 1)} ·{' '}
+              {rolling ? `Ø ${fmtNumber(total / span, 1)} Sätze pro Woche` : `${fmtNumber(total, 1)} Sätze`}
             </p>
-            {span > 1 && trainedWeeks < span && (
-              <p className="text-[11px] text-amber-300/80">
-                {trainedWeeks === 0 ? 'kein Training im Zeitraum' : `nur ${trainedWeeks} von ${span} Wochen mit Training`}
+            {rolling && (
+              <p className={`text-[11px] ${sessionsIn ? 'text-slate-500' : 'text-amber-300/80'}`}>
+                {sessionsIn ? `${sessionsIn} ${sessionsIn === 1 ? 'Training' : 'Trainings'} im Zeitraum` : 'kein Training im Zeitraum'}
               </p>
             )}
           </div>
           <button
             type="button"
             className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 disabled:opacity-30"
-            disabled={end <= minEnd}
-            onClick={() => setEndOffset(Math.max(minEnd, end - span))}
+            disabled={rolling ? back === 0 : weekOffset === 0}
+            onClick={() => (rolling ? setBack(back - 1) : setWeekOffset(weekOffset - 1))}
             aria-label="Späterer Zeitraum"
           >
             <ChevronRight size={18} />
@@ -122,7 +143,7 @@ export function VolumeTab({ data }: { data: ProgressData }) {
               <h3 className="font-bold">{selected}</h3>
               <span className="text-sm">
                 <span className="font-semibold tabular-nums" style={{ color: COLOR[toneOf(selected, val(selected))] }}>
-                  {fmtNumber(val(selected), 1)} Sätze{span > 1 && ' Ø/Woche'}
+                  {fmtNumber(val(selected), 1)} Sätze{rolling && ' Ø/Woche'}
                 </span>
                 <span className="text-slate-400">
                   {' '}
@@ -167,7 +188,7 @@ export function VolumeTab({ data }: { data: ProgressData }) {
           })}
         </ul>
         <p className="mt-3 text-[11px] text-slate-500">
-          {span > 1 ? `Durchschnitt pro Woche über ${span} abgeschlossene Wochen – Wochen ohne Training zählen mit. ` : ''}Arbeitssätze ohne Aufwärmen. Mittrainierte Muskeln zählen halb, links/rechts je Seite halb. Grauer Bereich: Empfehlung.
+          {rolling ? `Rollierend: Ø pro 7 Tage über ${days} Tage bis heute – Tage ohne Training zählen mit. ` : ''}Arbeitssätze ohne Aufwärmen. Mittrainierte Muskeln zählen halb, links/rechts je Seite halb. Grauer Bereich: Empfehlung.
         </p>
       </Card>
 

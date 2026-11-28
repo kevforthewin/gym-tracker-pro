@@ -39,6 +39,8 @@ export interface ProgressData {
   goal: number;
   /** weekStart → Muskel → Arbeitssätze */
   volume: Map<number, Map<string, number>>;
+  /** Einzelne Volumen-Beiträge mit Zeitpunkt – für rollierende Zeiträume */
+  volumeEntries: { ts: number; muscle: string; v: number }[];
   bodyweights: BodyweightEntry[];
 }
 
@@ -117,7 +119,9 @@ export function useProgressData(): ProgressData | undefined {
 
     // Wochen-Volumen
     const volume = new Map<number, Map<string, number>>();
-    const add = (w: number, m: string, v: number) => {
+    const volumeEntries: { ts: number; muscle: string; v: number }[] = [];
+    const add = (w: number, m: string, v: number, ts: number) => {
+      volumeEntries.push({ ts, muscle: canonMuscle(m), v });
       const row = volume.get(w) ?? new Map<string, number>();
       const k = canonMuscle(m);
       row.set(k, (row.get(k) ?? 0) + v);
@@ -129,8 +133,8 @@ export function useProgressData(): ProgressData | undefined {
       if (!ts || !ex || s.isWarmup || s.excluded || ex.type === 'time_distance' || !ex.muscleGroup || ex.muscleGroup === 'Cardio') continue;
       const w = weekStart(ts);
       const f = splitSide(ex.name).side ? 0.5 : 1;
-      add(w, ex.muscleGroup, f);
-      for (const m of secondaryOf((ex.createdBy && matchCatalog(ex.name)) || ex.id)) add(w, m, f * 0.5);
+      add(w, ex.muscleGroup, f, ts);
+      for (const m of secondaryOf((ex.createdBy && matchCatalog(ex.name)) || ex.id)) add(w, m, f * 0.5, ts);
     }
 
     const myGymIds = [...new Set(sessions.map((s) => s.gymId))];
@@ -146,6 +150,7 @@ export function useProgressData(): ProgressData | undefined {
       cardio: cardioRaw.map((c) => ({ date: c.date, durationMin: c.durationMin })),
       goal: goal ?? 3,
       volume,
+      volumeEntries,
       bodyweights: bodyweights.sort((a, b) => a.date.localeCompare(b.date)),
     };
   }, []);
