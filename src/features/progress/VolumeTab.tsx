@@ -22,40 +22,83 @@ const toneOf = (muscle: string, v: number) => {
 
 export function VolumeTab({ data }: { data: ProgressData }) {
   const thisWeek = weekStart(Date.now());
-  // Wochenanfang ohne Training: letzte Woche zeigen
-  const [offset, setOffset] = useState(() => (!data.volume.get(thisWeek)?.size && data.volume.get(addWeeks(thisWeek, -1))?.size ? 1 : 0));
+  /** Zeitraum: 1–4 Kalenderwochen. Werte = Ø Sätze pro Woche, damit sie mit der Empfehlung (pro Woche) vergleichbar bleiben. */
+  const [span, setSpan] = useState<number>(() => {
+    try {
+      return Number(sessionStorage.getItem('volumeSpan')) || 1;
+    } catch {
+      return 1;
+    }
+  });
+  // Ende des Zeitraums (Wochen vor der aktuellen). Mehrere Wochen: nur abgeschlossene – die laufende Woche würde den Schnitt drücken.
+  const minEnd = span > 1 ? 1 : 0;
+  const [endOffset, setEndOffset] = useState(() => (!data.volume.get(thisWeek)?.size && data.volume.get(addWeeks(thisWeek, -1))?.size ? 1 : 0));
+  const end = Math.max(endOffset, minEnd);
   const [selected, setSelected] = useState<string>();
-  const week = addWeeks(thisWeek, -offset);
-  const weeks = useMemo(() => Array.from({ length: WEEKS }, (_, i) => addWeeks(thisWeek, -(WEEKS - 1 - i))), [thisWeek]);
+  const endWeek = addWeeks(thisWeek, -end);
+  const range = useMemo(() => Array.from({ length: span }, (_, i) => addWeeks(endWeek, -(span - 1 - i))), [endWeek, span]);
+  const weeks = useMemo(() => Array.from({ length: Math.max(WEEKS, span) }, (_, i) => addWeeks(endWeek, -(Math.max(WEEKS, span) - 1 - i))), [endWeek, span]);
+  const chooseSpan = (n: number) => {
+    setSpan(n);
+    try {
+      sessionStorage.setItem('volumeSpan', String(n));
+    } catch {
+      /* egal */
+    }
+  };
 
   if (!data.volume.size) return <EmptyState title="Noch keine Trainingsdaten." />;
-  const row = data.volume.get(week) ?? new Map<string, number>();
-  const val = (m: string, w = week) => Math.round((data.volume.get(w)?.get(m) ?? 0) * 2) / 2;
-  const total = [...row.values()].reduce((a, b) => a + b, 0);
-  const muscles = MUSCLE_ORDER.filter((m) => weeks.some((w) => val(m, w) > 0) || val(m) > 0);
+  const round = (x: number) => Math.round(x * 2) / 2;
+  const valWeek = (m: string, w: number) => round(data.volume.get(w)?.get(m) ?? 0);
+  /** Ø Sätze pro Woche im Zeitraum */
+  const val = (m: string) => round(range.reduce((a, w) => a + (data.volume.get(w)?.get(m) ?? 0), 0) / span);
+  const total = range.reduce((a, w) => a + [...(data.volume.get(w)?.values() ?? [])].reduce((x, y) => x + y, 0), 0);
+  const trainedWeeks = range.filter((w) => data.volume.get(w)?.size).length;
+  const muscles = MUSCLE_ORDER.filter((m) => weeks.some((w) => valWeek(m, w) > 0));
+  const inRange = (w: number) => range.includes(w);
   const pct = (x: number) => `${Math.min(100, (x / SCALE_MAX) * 100)}%`;
 
   return (
     <div className="space-y-4">
       <Card>
+        <div className="mb-3 flex gap-1 rounded-full bg-slate-800/70 p-1" role="group" aria-label="Zeitraum">
+          {[1, 2, 3, 4].map((n) => (
+            <button
+              key={n}
+              type="button"
+              aria-pressed={span === n}
+              onClick={() => chooseSpan(n)}
+              className={`flex-1 rounded-full py-1.5 text-sm font-semibold ${span === n ? 'bg-slate-600 text-white' : 'text-slate-400'}`}
+            >
+              {n === 1 ? '1 Woche' : `${n} Wo.`}
+            </button>
+          ))}
+        </div>
         <div className="flex items-center justify-between">
-          <button type="button" className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800" onClick={() => setOffset(offset + 1)} aria-label="Vorherige Woche">
+          <button type="button" className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800" onClick={() => setEndOffset(end + span)} aria-label="Früherer Zeitraum">
             <ChevronLeft size={18} />
           </button>
           <div className="text-center">
             <h2 className="font-bold">
-              KW {isoWeek(week)} {offset === 0 && <span className="font-normal text-slate-500">· aktuell</span>}
+              {span === 1 ? `KW ${isoWeek(endWeek)}` : `KW ${isoWeek(range[0])}–${isoWeek(endWeek)}`}{' '}
+              {end === minEnd && <span className="font-normal text-slate-500">· {span === 1 ? 'aktuell' : 'zuletzt'}</span>}
             </h2>
             <p className="text-xs text-slate-500">
-              {fmtShortDate(week)} – {fmtShortDate(addWeeks(week, 1) - 86400000)} · {fmtNumber(total, 1)} Sätze
+              {fmtShortDate(range[0])} – {fmtShortDate(addWeeks(endWeek, 1) - 86400000)} ·{' '}
+              {span === 1 ? `${fmtNumber(total, 1)} Sätze` : `Ø ${fmtNumber(total / span, 1)} Sätze pro Woche`}
             </p>
+            {span > 1 && trainedWeeks < span && (
+              <p className="text-[11px] text-amber-300/80">
+                {trainedWeeks === 0 ? 'kein Training im Zeitraum' : `nur ${trainedWeeks} von ${span} Wochen mit Training`}
+              </p>
+            )}
           </div>
           <button
             type="button"
             className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 disabled:opacity-30"
-            disabled={offset === 0}
-            onClick={() => setOffset(offset - 1)}
-            aria-label="Nächste Woche"
+            disabled={end <= minEnd}
+            onClick={() => setEndOffset(Math.max(minEnd, end - span))}
+            aria-label="Späterer Zeitraum"
           >
             <ChevronRight size={18} />
           </button>
@@ -79,7 +122,7 @@ export function VolumeTab({ data }: { data: ProgressData }) {
               <h3 className="font-bold">{selected}</h3>
               <span className="text-sm">
                 <span className="font-semibold tabular-nums" style={{ color: COLOR[toneOf(selected, val(selected))] }}>
-                  {fmtNumber(val(selected), 1)} Sätze
+                  {fmtNumber(val(selected), 1)} Sätze{span > 1 && ' Ø/Woche'}
                 </span>
                 <span className="text-slate-400">
                   {' '}
@@ -90,12 +133,12 @@ export function VolumeTab({ data }: { data: ProgressData }) {
             {/* Mini-Verlauf 6 Wochen */}
             <div className="mt-2 flex h-14 items-end gap-1.5">
               {weeks.map((w) => {
-                const v = val(selected, w);
+                const v = valWeek(selected, w);
                 return (
                   <div key={w} className="flex h-full flex-1 flex-col justify-end text-center">
                     <div
                       className="rounded-t"
-                      style={{ height: `${Math.min(100, (v / SCALE_MAX) * 100)}%`, minHeight: v ? 3 : 0, background: COLOR[toneOf(selected, v)], opacity: w === week ? 1 : 0.55 }}
+                      style={{ height: `${Math.min(100, (v / SCALE_MAX) * 100)}%`, minHeight: v ? 3 : 0, background: COLOR[toneOf(selected, v)], opacity: inRange(w) ? 1 : 0.4 }}
                     />
                     <span className="mt-0.5 text-[9px] text-slate-500">KW{isoWeek(w)}</span>
                   </div>
@@ -124,16 +167,16 @@ export function VolumeTab({ data }: { data: ProgressData }) {
           })}
         </ul>
         <p className="mt-3 text-[11px] text-slate-500">
-          Arbeitssätze ohne Aufwärmen. Mittrainierte Muskeln zählen halb, links/rechts je Seite halb. Grauer Bereich: Empfehlung.
+          {span > 1 ? `Durchschnitt pro Woche über ${span} abgeschlossene Wochen – Wochen ohne Training zählen mit. ` : ''}Arbeitssätze ohne Aufwärmen. Mittrainierte Muskeln zählen halb, links/rechts je Seite halb. Grauer Bereich: Empfehlung.
         </p>
       </Card>
 
       <Card>
-        <h2 className="mb-2 text-lg font-bold">Verlauf · {WEEKS} Wochen</h2>
-        <div className="grid items-center gap-1 text-xs" style={{ gridTemplateColumns: `6.5rem repeat(${WEEKS}, minmax(0, 1fr))` }}>
+        <h2 className="mb-2 text-lg font-bold">Verlauf · {weeks.length} Wochen</h2>
+        <div className="grid items-center gap-1 text-xs" style={{ gridTemplateColumns: `6.5rem repeat(${weeks.length}, minmax(0, 1fr))` }}>
           <span />
           {weeks.map((w) => (
-            <span key={w} className={`text-center text-[10px] ${w === week ? 'font-semibold text-white' : 'text-slate-500'}`}>
+            <span key={w} className={`rounded text-center text-[10px] ${inRange(w) ? 'bg-slate-700/70 font-semibold text-white' : 'text-slate-500'}`}>
               KW{isoWeek(w)}
             </span>
           ))}
@@ -141,7 +184,7 @@ export function VolumeTab({ data }: { data: ProgressData }) {
             <Fragment key={m}>
               <span className="truncate text-slate-300">{m}</span>
               {weeks.map((w) => {
-                const v = val(m, w);
+                const v = valWeek(m, w);
                 const t = toneOf(m, v);
                 return (
                   <span
